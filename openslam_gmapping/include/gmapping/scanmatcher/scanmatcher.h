@@ -22,41 +22,22 @@ public:
   ScanMatcher();
   ~ScanMatcher();
 
-  double optimize(OrientedPoint & pnew, const ScanMatcherMap& map, const OrientedPoint & p,
-                  const double *readings) const;
-  double optimize(OrientedPoint & mean, CovarianceMatrix & cov, const ScanMatcherMap& map, const OrientedPoint & p,
-                  const double *readings) const;
   double optimize(OrientedPoint & pnew, const ScanMatcherMap& map, const OrientedPoint & p, const double *readings,
                   const SmUnorderedMap& active) const;
 
-  double registerScan(ScanMatcherMap & map, const OrientedPoint& p, const double *readings);
   void setLaserParameters(unsigned int beams, double *angles, const OrientedPoint& lpose);
   void setMatchingParameters(double urange, double range, double sigma, int kernsize, double lopt, double aopt,
                              int iterations, double likelihoodSigma = 1, unsigned int likelihoodSkip = 0);
-  void invalidateActiveArea();
-  void computeActiveArea(ScanMatcherMap & map, const OrientedPoint& p, const double *readings);
 
-  void registerActiveCells(SmUnorderedMap & activeCells, const ScanMatcherMap& map, const OrientedPoint & p,
-                           const double *readings);
-  void registerSeenCells(PointUnoSet & seenCells, const ScanMatcherMap& map, const OrientedPoint & p,
-                         const double *readings);
-  void registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map, const OrientedPoint & p,
-                     const double *readings);
-
-  inline double score(const ScanMatcherMap& map, const OrientedPoint & p, const double *readings) const;
+  void registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map,
+                     const OrientedPoint & p, const double *readings);
 
   inline double score(const ScanMatcherMap& map, const OrientedPoint & p, const double *readings,
                       const SmUnorderedMap& active) const;
 
   inline unsigned int likelihoodAndScore(double & s, double & l, const ScanMatcherMap& map, const OrientedPoint & p,
-                                         const double *readings) const;
-  inline unsigned int likelihoodAndScore(double & s, double & l, const ScanMatcherMap& map, const OrientedPoint & p,
                                          const double *readings, const SmUnorderedMap& active) const;
 
-  double likelihood(double & lmax, OrientedPoint & mean, CovarianceMatrix & cov, const ScanMatcherMap& map,
-                    const OrientedPoint & p, const double *readings);
-  double likelihood(double & _lmax, OrientedPoint & _mean, CovarianceMatrix & _cov, const ScanMatcherMap& map,
-                    const OrientedPoint & p, Gaussian3 & odometry, const double *readings, double gain = 180.);
   inline const double* laserAngles() const
   {
     return m_laserAngles;
@@ -132,68 +113,6 @@ PARAM_SET_GET(double, usableRange, protected, public, public)PARAM_SET_GET(doubl
   IntPoint * m_linePoints;
 };
 
-
-inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint& p, const double *readings) const
-{
-  double s = 0;
-  const double *angle = m_laserAngles + m_initialBeamsSkip;
-  OrientedPoint lp = p;
-
-  lp.x += cos(p.theta) * m_laserPose.x - sin(p.theta) * m_laserPose.y;
-  lp.y += sin(p.theta) * m_laserPose.x + cos(p.theta) * m_laserPose.y;
-  lp.theta += m_laserPose.theta;
-  unsigned int skip = 0;
-  double freeDelta = map.getDelta() * m_freeCellRatio;
-
-  for (const double *r = readings + m_initialBeamsSkip; r < readings + m_laserBeams; r++, angle++)
-  {
-    skip++;
-    skip = skip > m_likelihoodSkip ? 0 : skip;
-
-    if (skip || (*r > m_usableRange) || (*r == 0.0))
-      continue;
-    Point phit = lp;
-    phit.x += *r * cos(lp.theta + *angle);
-    phit.y += *r * sin(lp.theta + *angle);
-    IntPoint iphit = map.world2map(phit);
-    Point pfree(-freeDelta * cos(lp.theta + *angle), -freeDelta * sin(lp.theta + *angle));
-    IntPoint ipfree = map.world2map(phit + pfree) - iphit;
-    bool found = false;
-    Point bestMu(0., 0.);
-
-    for (int xx = -m_kernelSize; xx <= m_kernelSize; xx++)
-      for (int yy = -m_kernelSize; yy <= m_kernelSize; yy++)
-      {
-        IntPoint pr = iphit + IntPoint(xx, yy);
-        IntPoint pf = pr + ipfree;
-
-        // AccessibilityState s=map.storage().cellState(pr);
-        // if (s&Inside && s&Allocated){
-        const PointAccumulator& cell = map.cell(pr);
-        const PointAccumulator& fcell = map.cell(pf);
-
-        if ((((double)cell) > m_fullnessThreshold) && (((double)fcell) < m_fullnessThreshold))
-        {
-          Point mu = phit - cell.mean();
-
-          if (!found)
-          {
-            bestMu = mu;
-            found = true;
-          }
-          else
-            bestMu = (mu * mu) < (bestMu * bestMu) ? mu : bestMu;
-        }
-
-        // }
-      }
-
-    if (found)
-      s += exp(-1. / m_gaussianSigma * bestMu * bestMu);
-  }
-  return s;
-}
-
 inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint& p, const double *readings,
                                  const SmUnorderedMap& active) const
 {
@@ -253,12 +172,11 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 //          &fcell = *it->second;
 //        }
 
-
         //std::cerr << "Hit " <<  (double)cell << " Miss: " << (double)fcell << std::endl;
 
         if ((((double)cell) > m_fullnessThreshold) && (((double)fcell) < m_fullnessThreshold))
         {
-         // std::cerr << "I have a hit! " <<  std::endl;
+          // std::cerr << "I have a hit! " <<  std::endl;
           Point mu = phit - cell.mean();
 
           if (!found)
@@ -282,84 +200,6 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 //  std::cerr << elapsed_secs << std::endl;
 
   return s;
-}
-
-inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const ScanMatcherMap& map,
-                                                    const OrientedPoint& p, const double *readings) const
-{
-  using namespace std;
-
-  l = 0;
-  s = 0;
-  const double *angle = m_laserAngles + m_initialBeamsSkip;
-  OrientedPoint lp = p;
-  lp.x += cos(p.theta) * m_laserPose.x - sin(p.theta) * m_laserPose.y;
-  lp.y += sin(p.theta) * m_laserPose.x + cos(p.theta) * m_laserPose.y;
-  lp.theta += m_laserPose.theta;
-  double noHit = nullLikelihood / (m_likelihoodSigma);
-  unsigned int skip = 0;
-  unsigned int c = 0;
-  double freeDelta = map.getDelta() * m_freeCellRatio;
-
-  for (const double *r = readings + m_initialBeamsSkip; r < readings + m_laserBeams; r++, angle++)
-  {
-    skip++;
-    skip = skip > m_likelihoodSkip ? 0 : skip;
-
-    if (*r > m_usableRange)
-      continue;
-
-    if (skip)
-      continue;
-    Point phit = lp;
-    phit.x += *r * cos(lp.theta + *angle);
-    phit.y += *r * sin(lp.theta + *angle);
-    IntPoint iphit = map.world2map(phit);
-    Point pfree(-freeDelta * cos(lp.theta + *angle), -freeDelta * sin(lp.theta + *angle));
-    IntPoint ipfree = map.world2map(phit + pfree) - iphit;
-    bool found = false;
-    Point bestMu(0., 0.);
-
-    for (int xx = -m_kernelSize; xx <= m_kernelSize; xx++)
-      for (int yy = -m_kernelSize; yy <= m_kernelSize; yy++)
-      {
-        IntPoint pr = iphit + IntPoint(xx, yy);
-        IntPoint pf = pr + ipfree;
-
-        // AccessibilityState s=map.storage().cellState(pr);
-        // if (s&Inside && s&Allocated){
-        const PointAccumulator& cell = map.cell(pr);
-        const PointAccumulator& fcell = map.cell(pf);
-
-        if ((((double)cell) > m_fullnessThreshold) && (((double)fcell) < m_fullnessThreshold))
-        {
-          Point mu = phit - cell.mean();
-
-          if (!found)
-          {
-            bestMu = mu;
-            found = true;
-          }
-          else
-            bestMu = (mu * mu) < (bestMu * bestMu) ? mu : bestMu;
-        }
-
-        // }
-      }
-
-    if (found)
-    {
-      s += exp(-1. / m_gaussianSigma * bestMu * bestMu);
-      c++;
-    }
-
-    if (!skip)
-    {
-      double f = (-1. / m_likelihoodSigma) * (bestMu * bestMu);
-      l += (found) ? f : noHit;
-    }
-  }
-  return c;
 }
 
 inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const ScanMatcherMap& map,
