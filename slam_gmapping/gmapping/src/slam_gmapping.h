@@ -65,7 +65,7 @@ private:
   ros::Publisher entropy_publisher_;
   ros::Publisher active_cells_;
   ros::Publisher seen_cells_;
-//  ros::Publisher particlePCL_;
+  ros::Publisher particlePCL_;
   ros::Publisher sst_;
   ros::Publisher sstm_;
   ros::ServiceServer ss_;

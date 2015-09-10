@@ -301,7 +301,7 @@ void SlamGMapping::startLiveSlam()
   active_cells_ = node_.advertise<nav_msgs::OccupancyGrid>("active_cells_map", 1, true);
   sst_ = node_.advertise<nav_msgs::OccupancyGrid>("ref_map", 1, true);
   sstm_ = node_.advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
-//  particlePCL_ = node_.advertise<sensor_msgs::PointCloud>("particles", 1, true);
+  particlePCL_ = node_.advertise<sensor_msgs::PointCloud>("particles", 1, true);
 
   ss_ = node_.advertiseService("dynamic_map", &SlamGMapping::mapCallback, this);
   mapUp_ = node_.advertiseService("map_upstream", &SlamGMapping::mapUpstream, this);
@@ -643,34 +643,6 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
 {
   boost::mutex::scoped_lock map_lock(map_mutex_);
 
-  // GMapping::ScanMatcher matcher;
-  // double* laser_angles = new double[scan.ranges.size()];
-  // double theta = angle_min_;
-  // for (unsigned int i = 0; i < scan.ranges.size(); i++)
-  // {
-  //   if (gsp_laser_angle_increment_ < 0)
-  //     laser_angles[scan.ranges.size() - i - 1] = theta;
-  //   else
-  //     laser_angles[i] = theta;
-  //   theta += gsp_laser_angle_increment_;
-  // }
-  //
-  // matcher.setLaserParameters(scan.ranges.size(), laser_angles,
-  // gsp_laser_->getPose());
-  //
-  // delete[] laser_angles;
-  // matcher.setlaserMaxRange(maxRange_);
-  // matcher.setusableRange(maxUrange_);
-  // matcher.setgenerateMap(true);
-
-//  std_msgs::Float64 entropy;
-//
-//  entropy.data = computePoseEntropy();
-//
-//  if (entropy.data > 0.0)
-//    entropy_publisher_.publish(entropy);
-
-  //GMapping::ScanMatcherMap best_map = gsp_->getParticles()[gsp_->getBestParticleIndex()].map;
   GMapping::ScanMatcherMap& ref_map = *gsp_->m_refMap_ptr;
 
   if (!got_map_)
@@ -725,81 +697,11 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
   center.x = (xmin_ + xmax_) / 2.0;
   center.y = (ymin_ + ymax_) / 2.0;
 
-  // GMapping::ScanMatcherMap smap(center, xmin_, ymin_, xmax_, ymax_, delta_);
-
-  // ROS_DEBUG("Trajectory tree:");
-  // for (GMapping::GridSlamProcessor::TNode* n = best.node; n; n = n->parent)
-  // {
-  //   ROS_DEBUG("  %.3f %.3f %.3f", n->pose.x, n->pose.y, n->pose.theta);
-  //   if (!n->reading)
-  //   {
-  //     ROS_DEBUG("Reading is NULL");
-  //     continue;
-  //   }
-  //   matcher.invalidateActiveArea();
-  //   matcher.computeActiveArea(smap, n->pose, &((*n->reading)[0]));
-  //   matcher.registerScan(smap, n->pose, &((*n->reading)[0]));
-  // }
-
   // the map may have expanded, so resize ros message as well
   if ((ref_map_.map.info.width != (unsigned int)ref_map.getMapSizeX())
       || (ref_map_.map.info.height != (unsigned int)ref_map.getMapSizeY()))
   {
     std::cerr << "THIS SHIT SHOULD NOT HAPPEN" << std::endl;
-
-    // // NOTE: The results of ScanMatcherMap::getSize() are different from the
-    // parameters given to the constructor
-    // //       so we must obtain the bounding box in a different way
-    // GMapping::Point wmin = smap.map2world(GMapping::IntPoint(0, 0));
-    // GMapping::Point wmax =
-    // smap.map2world(GMapping::IntPoint(smap.getMapSizeX(),
-    // smap.getMapSizeY()));
-    // xmin_ = wmin.x;
-    // ymin_ = wmin.y;
-    // xmax_ = wmax.x;
-    // ymax_ = wmax.y;
-    //
-    // ROS_DEBUG("map size is now %dx%d pixels (%f,%f)-(%f, %f)",
-    // smap.getMapSizeX(), smap.getMapSizeY(), xmin_, ymin_,
-    //           xmax_, ymax_);
-    //
-    // map_.map.info.width = smap.getMapSizeX();
-    // map_.map.info.height = smap.getMapSizeY();
-    // map_.map.info.origin.position.x = xmin_;
-    // map_.map.info.origin.position.y = ymin_;
-    // map_.map.data.resize(map_.map.info.width * map_.map.info.height);
-    //
-    // pof_map_.map.info.width = smap.getMapSizeX();
-    // pof_map_.map.info.height = smap.getMapSizeY();
-    // pof_map_.map.info.origin.position.x = xmin_;
-    // pof_map_.map.info.origin.position.y = ymin_;
-    // pof_map_.map.data.resize(pof_map_.map.info.width *
-    // pof_map_.map.info.height);
-    //
-    // pfo_map_.map.info.width = smap.getMapSizeX();
-    // pfo_map_.map.info.height = smap.getMapSizeY();
-    // pfo_map_.map.info.origin.position.x = xmin_;
-    // pfo_map_.map.info.origin.position.y = ymin_;
-    // pfo_map_.map.data.resize(pfo_map_.map.info.width *
-    // pfo_map_.map.info.height);
-    //
-    // // wmin = test_map.map2world(GMapping::IntPoint(0, 0));
-    // // wmax = test_map.map2world(GMapping::IntPoint(test_map.getMapSizeX(),
-    // test_map.getMapSizeY()));
-    // // xmin_ = wmin.x;
-    // // ymin_ = wmin.y;
-    // // xmax_ = wmax.x;
-    // // ymax_ = wmax.y;
-    // //
-    // // ref_map_.map.info.width = test_map.getMapSizeX();
-    // // ref_map_.map.info.height = test_map.getMapSizeY();
-    // // ref_map_.map.info.origin.position.x = xmin_;
-    // // ref_map_.map.info.origin.position.y = ymin_;
-    // // ref_map_.map.data.resize(ref_map_.map.info.width *
-    // ref_map_.map.info.height);
-    //
-    // ROS_DEBUG("map origin: (%f, %f)", map_.map.info.origin.position.x,
-    // map_.map.info.origin.position.y);
   }
 
   const GMapping::GridSlamProcessor::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
@@ -847,54 +749,6 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
     }
   }
 
-  // for (int x = 0; x < best_map.getMapSizeX(); x++)
-  // {
-  //   for (int y = 0; y < best_map.getMapSizeY(); y++)
-  //   {
-  //     /// @todo Sort out the unknown vs. free vs. obstacle thresholding
-  //     GMapping::IntPoint p(x, y);
-  //     //double occ = best_map.cell(p);
-  //     double occ = best.getOcc(p);
-  //     assert(occ <= 1.0);
-  //
-  //     if (occ < 0)
-  //     {
-  //       best_map_.map.data[MAP_IDX(map_.map.info.width, x, y)] = -1;
-  //     }
-  //     else if (occ > occ_thresh_)
-  //     {
-  //       best_map_.map.data[MAP_IDX(map_.map.info.width, x, y)] = 100;
-  //     }
-  //     else
-  //     {
-  //       best_map_.map.data[MAP_IDX(map_.map.info.width, x, y)] = 0;
-  //     }
-  //   }
-  // }
-
-  // for ( auto it = best.activeCells.begin(); it!= best.activeCells.end();
-  // ++it)
-  // {
-  //   double occ = *it->second;
-  //   assert(occ <= 1.0);
-  //
-  //   if (occ < 0)
-  //   {
-  //     map_.map.data[MAP_IDX(map_.map.info.width, it->first.x, it->first.y)] =
-  // -1;
-  //   }
-  //   else if (occ > occ_thresh_)
-  //   {
-  //     map_.map.data[MAP_IDX(map_.map.info.width, it->first.x, it->first.y)] =
-  // 100;
-  //   }
-  //   else
-  //   {
-  //     map_.map.data[MAP_IDX(map_.map.info.width, it->first.x, it->first.y)] =
-  // 0;
-  //   }
-  // }
-
   got_map_ = true;
 
   // make sure to set the header information on the map
@@ -910,25 +764,26 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
   sst_.publish(ref_map_.map);
   sstm_.publish(ref_map_.map.info);
 
-//  sensor_msgs::PointCloud particleVis_;
-//
-//  particleVis_.header.frame_id = tf_.resolve(map_frame_);
-//  particleVis_.header.stamp = ros::Time::now();
-//
-//  const GMapping::GridSlamProcessor::ParticleVector& vis_particles_ = gsp_->getParticles();
-//
-//  for (GMapping::GridSlamProcessor::ParticleVector::const_iterator it = vis_particles_.begin();
-//      it != vis_particles_.end(); it++)
-//  {
-//    geometry_msgs::Point32 point;
-//    point.x = it->pose.x;
-//    point.y = it->pose.y;
-//    point.z = 0;
-//
-//    particleVis_.points.push_back(point);
-//  }
-//
-//  particlePCL_.publish(particleVis_);
+  // print particles
+  sensor_msgs::PointCloud particleVis_;
+
+  particleVis_.header.frame_id = tf_.resolve(map_frame_);
+  particleVis_.header.stamp = ros::Time::now();
+
+  const GMapping::GridSlamProcessor::ParticleVector& vis_particles_ = gsp_->getParticles();
+
+  for (GMapping::GridSlamProcessor::ParticleVector::const_iterator it = vis_particles_.begin();
+      it != vis_particles_.end(); it++)
+  {
+    geometry_msgs::Point32 point;
+    point.x = it->pose.x;
+    point.y = it->pose.y;
+    point.z = 0;
+
+    particleVis_.points.push_back(point);
+  }
+
+  particlePCL_.publish(particleVis_);
 }
 
 bool SlamGMapping::mapCallback(nav_msgs::GetMap::Request& req, nav_msgs::GetMap::Response& res)
@@ -967,7 +822,6 @@ bool SlamGMapping::mapUpstream(server_slam::requestSeenCells::Request & req,
     gsp_->clearSeenCells();
 
     const GMapping::GridSlamProcessor::Particle& best2 = gsp_->getParticles()[gsp_->getBestParticleIndex()];
-//    std::cerr << best2.seenCells.size() << std::endl;
     return true;
   }
   else
@@ -1006,7 +860,6 @@ void SlamGMapping::sendDownloadRequest()
   {
     ROS_INFO("I got a response");
 
-//    std::cerr << download_srv_.response.b.size() << std::endl;
 
     for (int i = 0; i < download_srv_.response.b.size(); i++)
     {
@@ -1025,15 +878,6 @@ void SlamGMapping::sendDownloadRequest()
 
     }
 
-//    for (auto particle_it = gsp_->getParticles().begin(); particle_it != gsp_->getParticles().end(); particle_it++)
-//    {
-//      std::cerr << particle_it->activeCells.size() << std::endl;
-//
-//    }
-
-//    std::cerr << "real: " << best.activeCells.size() << std::endl;
-//    GMapping::GridSlamProcessor::Particle& best2 = gsp_->getParticles()[gsp_->getBestParticleIndex()];
-//    std::cerr << "check: " << best2.activeCells.size() << std::endl;
   }
   else
   {
