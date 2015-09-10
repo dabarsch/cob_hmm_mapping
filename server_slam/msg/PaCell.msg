@@ -1,0 +1,2 @@
+IntPoint point
+PointAccumulator pa
