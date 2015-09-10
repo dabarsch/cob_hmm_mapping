@@ -767,31 +767,6 @@ void ScanMatcher::registerSeenCells(PointUnoSet & seenCells, const ScanMatcherMa
     }
 }
 
-double ScanMatcher::icpOptimize(OrientedPoint & pnew, const ScanMatcherMap& map, const OrientedPoint & init,
-                                const double *readings) const
-{
-  double currentScore;
-  double sc = score(map, init, readings);
-  OrientedPoint start = init;
-
-  pnew = init;
-  int iterations = 0;
-
-  do
-  {
-    currentScore = sc;
-    sc = icpStep(pnew, map, start, readings);
-
-    // cerr << "pstart=" << start.x << " " <<start.y << " " << start.theta <<
-    // endl;
-    // cerr << "pret=" << pnew.x << " " <<pnew.y << " " << pnew.theta << endl;
-    start = pnew;
-    iterations++;
-  } while (sc > currentScore);
-  std::cerr << "i=" << iterations << std::endl;
-  return currentScore;
-}
-
 double ScanMatcher::optimize(OrientedPoint & pnew, const ScanMatcherMap& map, const OrientedPoint & init,
                              const double *readings) const
 {
