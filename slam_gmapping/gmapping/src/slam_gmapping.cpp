@@ -701,7 +701,7 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
   if ((ref_map_.map.info.width != (unsigned int)ref_map.getMapSizeX())
       || (ref_map_.map.info.height != (unsigned int)ref_map.getMapSizeY()))
   {
-    std::cerr << "THIS SHIT SHOULD NOT HAPPEN" << std::endl;
+    ROS_WARN_STREAM("This should not have happened, tried to resize the map");
   }
 
   const GMapping::GridSlamProcessor::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
