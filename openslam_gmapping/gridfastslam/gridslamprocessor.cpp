@@ -17,8 +17,7 @@ const double m_distanceThresholdCheck = 20;
 
 using namespace std;
 
-GridSlamProcessor::GridSlamProcessor() :
-    m_infoStream(cout)
+GridSlamProcessor::GridSlamProcessor()
 {
   period_ = 5.0;
   m_obsSigmaGain = 1;
@@ -27,7 +26,7 @@ GridSlamProcessor::GridSlamProcessor() :
 }
 
 GridSlamProcessor::GridSlamProcessor(const GridSlamProcessor& gsp) :
-    last_update_time_(0.0), m_particles(gsp.m_particles), m_infoStream(cout)
+    last_update_time_(0.0), m_particles(gsp.m_particles)
 {
   period_ = 5.0;
 
@@ -90,15 +89,6 @@ GridSlamProcessor::GridSlamProcessor(const GridSlamProcessor& gsp) :
   cerr << ".done!" << endl;
 }
 
-GridSlamProcessor::GridSlamProcessor(std::ostream& infoS) :
-    m_infoStream(infoS)
-{
-  period_ = 5.0;
-  m_obsSigmaGain = 1;
-  m_resampleThreshold = 0.5;
-  m_minimumScore = 0.;
-}
-
 GridSlamProcessor * GridSlamProcessor::clone() const
 {
 
@@ -115,9 +105,8 @@ void GridSlamProcessor::setMatchingParameters(double urange, double range, doubl
   m_matcher.setMatchingParameters(urange, range, sigma, kernsize, lopt, aopt, iterations, likelihoodSigma,
                                   likelihoodSkip);
 
-  if (m_infoStream)
-    m_infoStream << " -maxUrange " << urange << " -maxUrange " << range << " -sigma     " << sigma << " -kernelSize "
-        << kernsize << " -lstep " << lopt << " -lobsGain " << m_obsSigmaGain << " -astep " << aopt << endl;
+  ROS_INFO_STREAM(
+      " -maxUrange " << urange << " -maxUrange " << range << " -sigma     " << sigma << " -kernelSize " << kernsize << " -lstep " << lopt << " -lobsGain " << m_obsSigmaGain << " -astep " << aopt);
 }
 
 void GridSlamProcessor::setMotionModelParameters(double srr, double srt, double str, double stt)
@@ -127,8 +116,7 @@ void GridSlamProcessor::setMotionModelParameters(double srr, double srt, double 
   m_motionModel.str = str;
   m_motionModel.stt = stt;
 
-  if (m_infoStream)
-    m_infoStream << " -srr " << srr << " -srt " << srt << " -str " << str << " -stt " << stt << endl;
+  ROS_INFO_STREAM(" -srr " << srr << " -srt " << srt << " -str " << str << " -stt " << stt);
 }
 
 void GridSlamProcessor::setUpdateDistances(double linear, double angular, double resampleThreshold)
@@ -137,9 +125,8 @@ void GridSlamProcessor::setUpdateDistances(double linear, double angular, double
   m_angularThresholdDistance = angular;
   m_resampleThreshold = resampleThreshold;
 
-  if (m_infoStream)
-    m_infoStream << " -linearUpdate " << linear << " -angularUpdate " << angular << " -resampleThreshold "
-        << m_resampleThreshold << endl;
+  ROS_INFO_STREAM(
+      " -linearUpdate " << linear << " -angularUpdate " << angular << " -resampleThreshold " << m_resampleThreshold);
 }
 
 // HERE STARTS THE BEEF
@@ -190,9 +177,8 @@ void GridSlamProcessor::init(unsigned int size, double xmin, double ymin, double
   m_ymax = ymax;
   m_delta = delta;
 
-  if (m_infoStream)
-    m_infoStream << " -xmin " << m_xmin << " -xmax " << m_xmax << " -ymin " << m_ymin << " -ymax " << m_ymax
-        << " -delta " << m_delta << " -particles " << size << endl;
+  ROS_INFO_STREAM(
+      " -xmin " << m_xmin << " -xmax " << m_xmax << " -ymin " << m_ymin << " -ymax " << m_ymax << " -delta " << m_delta << " -particles " << size);
 
   m_particles.clear();
 
@@ -278,12 +264,11 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
   {
     last_update_time_ = reading.getTime();
 
-    if (m_infoStream)
-      m_infoStream << "update frame " << m_readingCount << endl << "update ld=" << m_linearDistance << " ad="
-          << m_angularDistance << endl;
+    ROS_INFO_STREAM(
+        "update frame " << m_readingCount << endl << "update ld=" << m_linearDistance << " ad=" << m_angularDistance);
 
-    cerr << "Laser Pose= " << reading.getPose().x << " " << reading.getPose().y << " " << reading.getPose().theta
-        << endl;
+    ROS_ERROR_STREAM(
+        "Laser Pose= " << reading.getPose().x << " " << reading.getPose().y << " " << reading.getPose().theta);
 
     // this is for converting the reading in a scan-matcher feedable form
     assert(reading.size() == m_beams);
@@ -293,7 +278,7 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
     {
       plainReading[i] = reading[i];
     }
-    m_infoStream << "m_count " << m_count << endl;
+    ROS_INFO_STREAM("m_count " << m_count);
 
     RangeReading *reading_copy = new RangeReading(reading.size(), &(reading[0]),
                                                   static_cast<const RangeSensor *>(reading.getSensor()),
@@ -309,16 +294,13 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
 
       //      updateTreeWeights(false);
 
-      if (m_infoStream)
-      {
-        m_infoStream << "neff= " << m_neff << endl;
-      }
+      ROS_INFO_STREAM("neff= " << m_neff);
 
       resample(plainReading, adaptParticles, reading_copy);
     }
     else
     {
-      m_infoStream << "Registering First Scan" << endl;
+      ROS_INFO_STREAM("Registering First Scan");
 
       for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
       {
@@ -364,11 +346,6 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
 
   m_readingCount++;
   return processed;
-}
-
-std::ostream& GridSlamProcessor::infoStream()
-{
-  return m_infoStream;
 }
 
 int GridSlamProcessor::getBestParticleIndex() const

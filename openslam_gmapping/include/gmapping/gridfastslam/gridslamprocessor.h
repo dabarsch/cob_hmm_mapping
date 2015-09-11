@@ -1,6 +1,7 @@
 #ifndef GRIDSLAMPROCESSOR_H
 #define GRIDSLAMPROCESSOR_H
 
+#include <ros/ros.h>
 #include <climits>
 #include <limits>
 #include <fstream>
@@ -120,11 +121,6 @@ public:
    */
   GridSlamProcessor();
 
-  /** Constructs a GridSlamProcessor, whose output is routed to a stream.
-   @param infoStr: the output stream
-   */
-  GridSlamProcessor(std::ostream & infoStr);
-
   /** @returns  a deep copy of the grid slam processor with all the internal
    structures.
    */
@@ -132,7 +128,6 @@ public:
 
   /**Deleted the gridslamprocessor*/
   //virtual ~GridSlamProcessor();
-
   // methods for accessing the parameters
   void setSensorMap(const SensorMap& smap);
   void init(unsigned int size, double xmin, double ymin, double xmax, double ymax, double delta,
@@ -162,9 +157,6 @@ public:
 //    void        integrateScanSequence(TNode *node);
   /**the scanmatcher algorithm*/
   ScanMatcher m_matcher;
-
-  /**the stream used for writing the info/debug messages*/
-  std::ostream & infoStream();
 
   /**@returns the particles*/
   inline const ParticleVector& getParticles() const
@@ -418,9 +410,6 @@ PARAM_SET_GET(double, angularThresholdDistance, protected, public, public)
 PARAM_SET_GET(double, obsSigmaGain, protected, public, public)
   ;
 
-  // stream in which to write the messages
-  std::ostream& m_infoStream;
-
   // HMM Extension
   std::shared_ptr<ScanMatcherMap> m_refMap_ptr;
 
@@ -462,13 +451,9 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
     }
     else
     {
-      if (m_infoStream)
-      {
-        m_infoStream << "Scan Matching Failed, using odometry. Likelihood=" << l << std::endl;
-        m_infoStream << "lp:" << m_lastPartPose.x << " " << m_lastPartPose.y << " " << m_lastPartPose.theta
-            << std::endl;
-        m_infoStream << "op:" << m_odoPose.x << " " << m_odoPose.y << " " << m_odoPose.theta << std::endl;
-      }
+      ROS_INFO_STREAM("Scan Matching Failed, using odometry. Likelihood=" << l);
+      ROS_INFO_STREAM("lp:" << m_lastPartPose.x << " " << m_lastPartPose.y << " " << m_lastPartPose.theta);
+      ROS_INFO_STREAM("op:" << m_odoPose.x << " " << m_odoPose.y << " " << m_odoPose.theta);
     }
 
     m_matcher.likelihoodAndScore(s, l, it->map, it->pose, plainReading, it->activeCells);
@@ -478,8 +463,7 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
 
   }
 
-  if (m_infoStream)
-    m_infoStream << "Average Scan Matching Score=" << sumScore / m_particles.size() << std::endl;
+  ROS_INFO_STREAM("Average Scan Matching Score=" << sumScore / m_particles.size());
 }
 
 inline void GridSlamProcessor::normalize()
@@ -531,8 +515,8 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
   if (m_neff < m_resampleThreshold * m_particles.size())
   {
-    if (m_infoStream)
-      m_infoStream << "*************RESAMPLE***************" << std::endl;
+
+    ROS_INFO_STREAM("*************RESAMPLE***************");
 
     uniform_resampler<double, double> resampler;
 
