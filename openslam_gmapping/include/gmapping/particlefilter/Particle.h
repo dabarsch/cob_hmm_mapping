@@ -77,9 +77,6 @@ public:
   {
     return map.cell(p);
   }
-private:
-  Particle()
-  {}
 };
 typedef std::vector<Particle> ParticleVector;
 };
