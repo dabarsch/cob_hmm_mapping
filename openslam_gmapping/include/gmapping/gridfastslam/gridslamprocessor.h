@@ -387,7 +387,7 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
       ROS_INFO_STREAM("op:" << m_odoPose.x << " " << m_odoPose.y << " " << m_odoPose.theta);
     }
 
-    m_matcher.likelihoodAndScore(s, l, it->map, it->pose, plainReading, it->activeCells);
+    m_matcher.likelihoodAndScore(s, l, *m_refMap_ptr, it->pose, plainReading, it->activeCells);
     sumScore += score;
     it->weight += l;
     it->weightSum += l;
@@ -503,7 +503,7 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
       temp.push_back(p);
 //        temp.back().node          = node;
-      temp.back().previousIndex = m_indexes[i];
+      //temp.back().previousIndex = m_indexes[i];
     }
 
     while (j < m_indexes.size())
@@ -569,7 +569,7 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 //        m_matcher.registerActiveCells(it->activeCells, *m_refMap_ptr, it->pose, plainReading);
 //        m_matcher.registerSeenCells(it->seenCells, *m_refMap_ptr, it->pose, plainReading);
       m_matcher.registerCells(it->seenCells, it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-      it->previousIndex = index;
+    //  it->previousIndex = index;
       index++;
 //        node_it++;
     }

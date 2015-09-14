@@ -8,79 +8,60 @@ namespace GMapping
 class Particle
 {
 public:
-  Particle(const ScanMatcherMap& m) :
-      map(m), pose(0, 0, 0), weight(0), weightSum(0), gweight(0), previousIndex(0),
-      p_map_(boost::extents[m.getMapSizeX()][m.getMapSizeY()])
-  {}
 
-  /** @returns the weight of a particle */
-  inline operator double() const
-  {
-    return weight;
-  }
+  //Functions
+  Particle(const ScanMatcherMap& m);
+  inline operator double() const;
+  inline operator OrientedPoint() const;
+  inline void setWeight(double w);
+  inline PointAccumulator& getCell(std::shared_ptr<ScanMatcherMap> refMap, IntPoint p) const;
 
-  /** @returns the pose of a particle */
-  inline operator OrientedPoint() const
-  {
-    return pose;
-  }
-
-  /** sets the weight of a particle
-   @param w the weight
-   */
-  inline void setWeight(double w)
-  {
-    weight = w;
-  }
-
-  /** The map */
-  ScanMatcherMap map;
-
-  /** The pose of the robot */
+  //Member
   OrientedPoint pose;
-
-  /** The pose of the robot at the previous time frame (used for computing
-   thr odometry displacements) */
-  OrientedPoint previousPose;
-
-  /** The weight of the particle */
   double weight;
-
-  /** The cumulative weight of the particle */
   double weightSum;
-
   double gweight;
-
-  /** The index of the previous particle in the trajectory tree */
-  int previousIndex;
-
-  /** Entry to the trajectory tree */
-//      TNode *node;
   SmUnorderedMap activeCells;
   PointUnoSet seenCells;
   SmPointerMap p_map_;
-
-  inline PointAccumulator& getCell(std::shared_ptr<ScanMatcherMap> refMap, IntPoint p) const
-  {
-    auto it = activeCells.find(p);
-    if (it == activeCells.end())
-    {
-      return refMap->cell(p);
-    }
-    else
-    {
-      return *it->second;
-    }
-  }
-
-  inline double getOcc(IntPoint p) const
-  {
-    return map.cell(p);
-  }
 };
+
 typedef std::vector<Particle> ParticleVector;
+
+//Definitions
+inline Particle::Particle(const ScanMatcherMap& m) :
+     pose(0, 0, 0), weight(0), weightSum(0), gweight(0),
+     p_map_(boost::extents[m.getMapSizeX()][m.getMapSizeY()])
+{}
+
+inline Particle::operator double() const
+{
+  return weight;
+}
+
+inline Particle::operator OrientedPoint() const
+{
+  return pose;
+}
+
+inline void Particle::setWeight(double w)
+{
+  weight = w;
+}
+
+inline PointAccumulator& Particle::getCell(std::shared_ptr<ScanMatcherMap> refMap, IntPoint p) const
+{
+  auto it = activeCells.find(p);
+  if (it == activeCells.end())
+  {
+    return refMap->cell(p);
+  }
+  else
+  {
+    return *it->second;
+  }
+}
+
 };
-
-
 
 #endif /* ifndef PARTICLE_H */

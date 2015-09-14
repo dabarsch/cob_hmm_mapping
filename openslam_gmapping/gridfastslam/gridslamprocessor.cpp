@@ -181,9 +181,9 @@ void GridSlamProcessor::init(unsigned int size, double xmin, double ymin, double
   {
     m_particles.push_back(Particle(*m_refMap_ptr));
     m_particles.back().pose = initialPose;
-    m_particles.back().previousPose = initialPose;
+    //m_particles.back().previousPose = initialPose;
     m_particles.back().setWeight(0);
-    m_particles.back().previousIndex = 0;
+    //m_particles.back().previousIndex = 0;
 
     // this is not needed
     //		m_particles.back().node=new TNode(initialPose, 0, node, 0);
@@ -329,11 +329,6 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
     m_count++;
     processed = true;
 
-    // keep ready for the next step
-    for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
-    {
-      it->previousPose = it->pose;
-    }
   }
 
   m_readingCount++;
