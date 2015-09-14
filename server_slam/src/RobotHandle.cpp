@@ -2,18 +2,6 @@
 #include "server_slam/RobotHandle.h"
 #include "server_slam/SlamServer.h"
 
-RobotHandle::RobotHandle() :
-    RobotHandle(10)
-{
-}
-
-RobotHandle::RobotHandle(int period) :
-    upstream_period_(period)
-{
-  upstream_cl_ = rob_node_.serviceClient<server_slam::requestSeenCells>("map_upstream");
-  upstream_thread_ = std::thread(&RobotHandle::upstreamLoop, this);
-}
-
 RobotHandle::RobotHandle(int period, const ros::NodeHandle& node, const std::string name) :
     upstream_period_(period), rob_node_(node), upstream_cl_(
         rob_node_.serviceClient<server_slam::requestSeenCells>("map_upstream")), upstream_thread_(
@@ -23,6 +11,7 @@ RobotHandle::RobotHandle(int period, const ros::NodeHandle& node, const std::str
 
 RobotHandle::~RobotHandle()
 {
+
   upstream_thread_.join();
 }
 

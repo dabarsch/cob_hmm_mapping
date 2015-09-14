@@ -1,0 +1,3 @@
+server_slam/Pose pose
+---
+int32 ok

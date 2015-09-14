@@ -13,8 +13,6 @@ class RobotHandle
 {
 public:
 
-  RobotHandle();
-  RobotHandle(int period);
   RobotHandle(int period, const ros::NodeHandle & node, const std::string name);
   ~RobotHandle();
   void setServer(std::shared_ptr<SlamServer> server_ptr);
