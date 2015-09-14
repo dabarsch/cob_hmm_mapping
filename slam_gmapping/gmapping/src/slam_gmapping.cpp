@@ -623,14 +623,14 @@ double SlamGMapping::computePoseEntropy()
 {
   double weight_total = 0.0;
 
-  for (std::vector<GMapping::GridSlamProcessor::Particle>::const_iterator it = gsp_->getParticles().begin();
+  for (std::vector<GMapping::Particle>::const_iterator it = gsp_->getParticles().begin();
       it != gsp_->getParticles().end(); ++it)
   {
     weight_total += it->weight;
   }
   double entropy = 0.0;
 
-  for (std::vector<GMapping::GridSlamProcessor::Particle>::const_iterator it = gsp_->getParticles().begin();
+  for (std::vector<GMapping::Particle>::const_iterator it = gsp_->getParticles().begin();
       it != gsp_->getParticles().end(); ++it)
   {
     if (it->weight / weight_total > 0.0)
@@ -704,7 +704,7 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
     ROS_WARN_STREAM("This should not have happened, tried to resize the map");
   }
 
-  const GMapping::GridSlamProcessor::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+  const GMapping::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
 
   for (int x = 0; x < ref_map.getMapSizeX(); x++)
   {
@@ -770,9 +770,9 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
   particleVis_.header.frame_id = tf_.resolve(map_frame_);
   particleVis_.header.stamp = ros::Time::now();
 
-  const GMapping::GridSlamProcessor::ParticleVector& vis_particles_ = gsp_->getParticles();
+  const GMapping::ParticleVector& vis_particles_ = gsp_->getParticles();
 
-  for (GMapping::GridSlamProcessor::ParticleVector::const_iterator it = vis_particles_.begin();
+  for (GMapping::ParticleVector::const_iterator it = vis_particles_.begin();
       it != vis_particles_.end(); it++)
   {
     geometry_msgs::Point32 point;
@@ -806,7 +806,7 @@ bool SlamGMapping::mapUpstream(server_slam::requestSeenCells::Request & req,
 
   if (req.a == 1)
   {
-    const GMapping::GridSlamProcessor::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+    const GMapping::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
 
     std::vector<server_slam::PaCell> temp(best.seenCells.size());
 
@@ -821,7 +821,7 @@ bool SlamGMapping::mapUpstream(server_slam::requestSeenCells::Request & req,
 
     gsp_->clearSeenCells();
 
-    const GMapping::GridSlamProcessor::Particle& best2 = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+    const GMapping::Particle& best2 = gsp_->getParticles()[gsp_->getBestParticleIndex()];
     return true;
   }
   else

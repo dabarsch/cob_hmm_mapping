@@ -8,6 +8,7 @@
 #include <vector>
 #include <deque>
 #include <gmapping/particlefilter/particlefilter.h>
+#include <gmapping/particlefilter/Particle.h>
 #include <gmapping/utils/point.h>
 #include <gmapping/utils/macro_params.h>
 #include <gmapping/sensor/sensor_range/rangesensor.h>
@@ -21,6 +22,7 @@
 #include <gmapping/sensor/sensor_range/rangereading.h>
 #include "motionmodel.h"
 #include <memory>
+#include <boost/multi_array.hpp>
 
 namespace GMapping
 {
@@ -37,85 +39,14 @@ namespace GMapping
  In order to avoid unnecessary computation the filter state is updated
  only when the robot moves more than a given threshold.
  */
+/**This class defines a particle of the filter. Each particle has a map, a
+ pose, a weight and retains the current node in the trajectory tree*/
+
 class GridSlamProcessor
 {
 public:
 
-  /**This class defines a particle of the filter. Each particle has a map, a
-   pose, a weight and retains the current node in the trajectory tree*/
-  struct Particle
-  {
-    /**constructs a particle, given a map
-     @param map: the particle map
-     */
-    Particle(const ScanMatcherMap &map);
 
-    /** @returns the weight of a particle */
-    inline operator double() const
-    {
-      return weight;
-    }
-
-    /** @returns the pose of a particle */
-    inline operator OrientedPoint() const
-    {
-      return pose;
-    }
-
-    /** sets the weight of a particle
-     @param w the weight
-     */
-    inline void setWeight(double w)
-    {
-      weight = w;
-    }
-
-    /** The map */
-    ScanMatcherMap map;
-
-    /** The pose of the robot */
-    OrientedPoint pose;
-
-    /** The pose of the robot at the previous time frame (used for computing
-     thr odometry displacements) */
-    OrientedPoint previousPose;
-
-    /** The weight of the particle */
-    double weight;
-
-    /** The cumulative weight of the particle */
-    double weightSum;
-
-    double gweight;
-
-    /** The index of the previous particle in the trajectory tree */
-    int previousIndex;
-
-    /** Entry to the trajectory tree */
-//      TNode *node;
-    SmUnorderedMap activeCells;
-    PointUnoSet seenCells;
-
-    inline PointAccumulator& getCell(std::shared_ptr<ScanMatcherMap> refMap, IntPoint p) const
-    {
-      auto it = activeCells.find(p);
-      if (it == activeCells.end())
-      {
-        return refMap->cell(p);
-      }
-      else
-      {
-        return *it->second;
-      }
-    }
-
-    inline double getOcc(IntPoint p) const
-    {
-      return map.cell(p);
-    }
-  };
-
-  typedef std::vector<Particle> ParticleVector;
 
   /** Constructs a GridSlamProcessor, initialized with the default parameters
    */

@@ -8,8 +8,10 @@
 #include <server_slam/PointAccumulator.h>
 #include <unordered_set>
 #include <math.h>
-
 #include <memory>
+#include <boost/multi_array.hpp>
+
+
 
 #define SIGHT_INC 1
 
@@ -193,6 +195,8 @@ int PointAccumulator::getPfo()
 typedef Map<PointAccumulator, HierarchicalArray2D<PointAccumulator>> ScanMatcherMap;
 typedef std::unordered_map<IntPoint, std::shared_ptr<PointAccumulator>> SmUnorderedMap;
 typedef std::unordered_set<IntPoint> PointUnoSet;
+typedef boost::multi_array<std::shared_ptr<PointAccumulator>, 2> SmPointerMap;
+typedef SmPointerMap::index index;
 }
 ;
 

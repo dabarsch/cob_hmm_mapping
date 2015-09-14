@@ -129,14 +129,6 @@ void GridSlamProcessor::setUpdateDistances(double linear, double angular, double
       " -linearUpdate " << linear << " -angularUpdate " << angular << " -resampleThreshold " << m_resampleThreshold);
 }
 
-// HERE STARTS THE BEEF
-
-GridSlamProcessor::Particle::Particle(const ScanMatcherMap& m) :
-    map(m), pose(0, 0, 0), weight(0), weightSum(0), gweight(0), previousIndex(0)
-{
-  //  node = 0;
-}
-
 void GridSlamProcessor::setSensorMap(const SensorMap& smap)
 {
   /*
