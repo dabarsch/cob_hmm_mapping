@@ -35,10 +35,9 @@ SlamServer::~SlamServer()
   map_publish_thread_.join();
 }
 
-void SlamServer::registerRobot()
+void SlamServer::registerRobot(const std::string name)
 {
-  auto rob = std::make_shared<RobotHandle>(10, server_node_);
-
+  auto rob = std::make_shared<RobotHandle>(10, server_node_, name);
   rob->setServer(shared_from_this());
   rob_list_.push_front(rob);
   robot_count_++;

@@ -10,6 +10,7 @@
 #include <thread>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 
 #include "gmapping/scanmatcher/smmap.h"
 #include "server_slam/RobotHandle.h"
@@ -22,7 +23,7 @@ class SlamServer : public std::enable_shared_from_this<SlamServer>
 public:
   SlamServer();
   ~SlamServer();
-  void registerRobot();
+  void registerRobot(const std::string name);
   void updateMapSegment(server_slam::requestSeenCells::Response& response);
   void publishMapLoop();
   void publishMap();
@@ -41,6 +42,7 @@ private:
   std::mutex map_mutex_;
   std::thread map_publish_thread_;
   std::forward_list<std::shared_ptr<RobotHandle>> rob_list_;
+  std::unordered_map<std::string, GMapping::OrientedPoint> saved_robots_;
   int robot_count_;
   std::string map_frame_;
 

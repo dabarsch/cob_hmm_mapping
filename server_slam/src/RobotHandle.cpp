@@ -14,10 +14,10 @@ RobotHandle::RobotHandle(int period) :
   upstream_thread_ = std::thread(&RobotHandle::upstreamLoop, this);
 }
 
-RobotHandle::RobotHandle(int period, const ros::NodeHandle& node) :
+RobotHandle::RobotHandle(int period, const ros::NodeHandle& node, const std::string name) :
     upstream_period_(period), rob_node_(node), upstream_cl_(
         rob_node_.serviceClient<server_slam::requestSeenCells>("map_upstream")), upstream_thread_(
-        &RobotHandle::upstreamLoop, this)
+        &RobotHandle::upstreamLoop, this), name_(name)
 {
 }
 

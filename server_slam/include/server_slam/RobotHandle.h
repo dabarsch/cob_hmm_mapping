@@ -15,7 +15,7 @@ public:
 
   RobotHandle();
   RobotHandle(int period);
-  RobotHandle(int period, const ros::NodeHandle & node);
+  RobotHandle(int period, const ros::NodeHandle & node, const std::string name);
   ~RobotHandle();
   void setServer(std::shared_ptr<SlamServer> server_ptr);
 
@@ -26,6 +26,7 @@ private:
   server_slam::requestSeenCells upstream_srv_;
   std::thread upstream_thread_;
   std::weak_ptr<SlamServer> server_ptr_;
+  std::string name_;
 
   int upstream_period_;
   void upstreamLoop();
