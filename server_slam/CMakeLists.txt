@@ -58,6 +58,7 @@ add_message_files(
   PointAccumulator.msg
   IntPoint.msg
   PaCell.msg
+  Pose.msg
 )
 
 ## Generate services in the 'srv' folder
