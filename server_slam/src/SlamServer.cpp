@@ -26,8 +26,9 @@ SlamServer::SlamServer() :
   map_msg_.map.data.resize(map_msg_.map.info.width * map_msg_.map.info.height);
 
   map_publish_thread_ = std::thread(&SlamServer::publishMapLoop, this);
-
   map_down_ = server_node_.advertiseService("map_download", &SlamServer::mapDownload, this);
+  robot_turn_off_ = server_node_.advertiseService("robot_turn_off", &SlamServer::robotTurnOff, this);
+
 }
 
 SlamServer::~SlamServer()
@@ -104,7 +105,6 @@ bool SlamServer::mapDownload(server_slam::requestSeenCells::Request & req, serve
 
   if (req.a == 1)
   {
-//    std::cerr << buffer_.b.size() << std::endl;
     res = buffer_;
     return true;
   }
@@ -113,3 +113,21 @@ bool SlamServer::mapDownload(server_slam::requestSeenCells::Request & req, serve
     return false;
   }
 }
+
+bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req,
+                  server_slam::turnOff::Response& res)
+{
+  std::lock_guard<std::mutex> guard(saved_robots_mutex_);
+  if (req.name.size() != 0)
+  {
+    saved_robots_.at(req.name)=GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta);
+    res.ok = 1;
+    return true;
+  }
+  else
+  {
+    res.ok = 0;
+    return false;
+  }
+}
+
