@@ -16,6 +16,7 @@
 #include "server_slam/RobotHandle.h"
 #include "server_slam/requestSeenCells.h"
 #include "server_slam/turnOff.h"
+#include "server_slam/poseRequest.h"
 
 class SlamServer : public std::enable_shared_from_this<SlamServer>
 
@@ -32,6 +33,8 @@ public:
                    server_slam::requestSeenCells::Response& res);
   bool robotTurnOff(server_slam::turnOff::Request & req,
                     server_slam::turnOff::Response& res);
+  bool poseRequest(server_slam::poseRequest::Request & req,
+                    server_slam::poseRequest::Response& res);
 
 
 private:
@@ -40,6 +43,7 @@ private:
   ros::Duration publish_period_;
   ros::ServiceServer map_down_;
   ros::ServiceServer robot_turn_off_;
+  ros::ServiceServer register_robot_;
   nav_msgs::GetMap::Response map_msg_;
   tf::TransformListener tf_;
 

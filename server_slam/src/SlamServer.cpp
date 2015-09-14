@@ -28,6 +28,7 @@ SlamServer::SlamServer() :
   map_publish_thread_ = std::thread(&SlamServer::publishMapLoop, this);
   map_down_ = server_node_.advertiseService("map_download", &SlamServer::mapDownload, this);
   robot_turn_off_ = server_node_.advertiseService("robot_turn_off", &SlamServer::robotTurnOff, this);
+  register_robot_ = server_node_.advertiseService("request_pose", &SlamServer::poseRequest, this);
 
 }
 
@@ -129,5 +130,21 @@ bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req,
     res.ok = 0;
     return false;
   }
+}
+
+bool SlamServer::poseRequest(server_slam::poseRequest::Request & req,
+                  server_slam::poseRequest::Response& res)
+{
+  std::lock_guard<std::mutex> guard(saved_robots_mutex_);
+  auto it = saved_robots_.find(req.name);
+  if (it == saved_robots_.end())
+  {
+    return false;
+  }
+    GMapping::OrientedPoint& temp = it->second;
+    res.pose.x = temp.x;
+    res.pose.y = temp.y;
+    res.pose.theta = temp.theta;
+    return true;
 }
 

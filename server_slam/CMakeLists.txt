@@ -66,6 +66,7 @@ add_service_files(
   FILES
   requestSeenCells.srv
   turnOff.srv
+  poseRequest.srv
 )
 
 ## Generate actions in the 'action' folder
