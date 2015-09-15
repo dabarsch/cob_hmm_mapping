@@ -23,8 +23,9 @@
 #include "nav_msgs/GetMap.h"
 
 #include "server_slam/requestSeenCells.h"
-
 #include "server_slam/PointAccumulator.h"
+#include "server_slam/turnOff.h"
+#include "server_slam/poseRequest.h"
 
 #include "tf/transform_listener.h"
 #include "tf/transform_broadcaster.h"
@@ -36,6 +37,7 @@
 
 #include <boost/thread.hpp>
 #include <thread>
+#include <string>
 
 class SlamGMapping
 {
@@ -59,6 +61,8 @@ public:
 
 private:
 
+  std::string name;
+
   ros::NodeHandle node_;
   ros::NodeHandle private_nh_;
 
@@ -72,6 +76,7 @@ private:
   ros::ServiceServer mapUp_;
 
   ros::ServiceClient download_cl_;
+  ros::ServiceClient turn_off_;
   server_slam::requestSeenCells download_srv_;
   std::thread download_thread_;
 

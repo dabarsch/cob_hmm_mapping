@@ -3,6 +3,8 @@
 #include "server_slam/SlamServer.h"
 #include <gmapping/utils/point.h>
 
+#include <utility>
+
 // linear index
 #define MAP_IDX(width, x, y) ((width) * (y) + (x))
 
@@ -26,9 +28,10 @@ SlamServer::SlamServer() :
   map_msg_.map.data.resize(map_msg_.map.info.width * map_msg_.map.info.height);
 
   map_publish_thread_ = std::thread(&SlamServer::publishMapLoop, this);
-  map_down_ = server_node_.advertiseService("map_download", &SlamServer::mapDownload, this);
   robot_turn_off_ = server_node_.advertiseService("robot_turn_off", &SlamServer::robotTurnOff, this);
+  map_down_ = server_node_.advertiseService("map_download", &SlamServer::mapDownload, this);
   register_robot_ = server_node_.advertiseService("request_pose", &SlamServer::poseRequest, this);
+
 
 }
 
@@ -41,7 +44,7 @@ void SlamServer::registerRobot(const std::string name)
 {
   auto rob = std::make_shared<RobotHandle>(10, server_node_, name);
   rob->setServer(shared_from_this());
-  rob_list_.push_front(rob);
+  rob_map_.insert(make_pair(name,rob));
   robot_count_++;
 }
 
@@ -119,15 +122,21 @@ bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req,
                   server_slam::turnOff::Response& res)
 {
   std::lock_guard<std::mutex> guard(saved_robots_mutex_);
-  if (req.name.size() != 0)
+  std::cerr << req.name << std::endl;
+  // std::cerr << req.name.size() << std::endl;
+  if (req.name.size() >= 0)
   {
-    saved_robots_.at(req.name)=GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta);
-    res.ok = 1;
+    auto success = saved_robots_.insert(std::make_pair(req.name, GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta)));
+    if(!success.second)
+    {
+      success.first->second = GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta);
+    }
+    std::cerr << "x: " << req.pose.x << " y: " << req.pose.y << " yaw: "
+            << req.pose.theta << std::endl;
     return true;
   }
   else
   {
-    res.ok = 0;
     return false;
   }
 }
@@ -139,12 +148,14 @@ bool SlamServer::poseRequest(server_slam::poseRequest::Request & req,
   auto it = saved_robots_.find(req.name);
   if (it == saved_robots_.end())
   {
+    registerRobot(req.name);
     return false;
   }
     GMapping::OrientedPoint& temp = it->second;
     res.pose.x = temp.x;
     res.pose.y = temp.y;
     res.pose.theta = temp.theta;
+    std::cerr << "x: " << res.pose.x << " y: " << res.pose.y << " yaw: "
+            << res.pose.theta << std::endl;
     return true;
 }
-

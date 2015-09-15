@@ -51,7 +51,7 @@ private:
   std::mutex map_mutex_;
   std::mutex saved_robots_mutex_;
   std::thread map_publish_thread_;
-  std::forward_list<std::shared_ptr<RobotHandle>> rob_list_;
+  std::unordered_map<std::string,std::shared_ptr<RobotHandle>> rob_map_;
   std::unordered_map<std::string, GMapping::OrientedPoint> saved_robots_;
   int robot_count_;
   std::string map_frame_;
