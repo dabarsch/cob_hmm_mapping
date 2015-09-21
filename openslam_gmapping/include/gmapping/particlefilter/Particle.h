@@ -42,6 +42,7 @@ private:
   // private functions
   inline std::shared_ptr<PointAccumulator> insertActive(const IntPoint& p);
   inline void removeActive(const IntPoint& p);
+  inline void initPtrMap();
 
   // private member
 };
@@ -56,6 +57,7 @@ inline OrientedPoint Particle::getPose()
 inline Particle::Particle(const ScanMatcherMap& m) :
     map_(m), pose(0, 0, 0), weight(0), weightSum(0), gweight(0), p_map_(boost::extents[m.getMapSizeX()][m.getMapSizeY()])
 {
+  initPtrMap();
 }
 
 inline Particle::operator double() const
@@ -145,6 +147,17 @@ inline void Particle::updateRemaining()
   for (auto it = activeCells.begin(); it != activeCells.end(); it++)
   {
     it->second->updateIfNotSeen();
+  }
+}
+
+inline void Particle::initPtrMap()
+{
+  for (auto x = 0; x < map_.getMapSizeX(); x++)
+  {
+    for (auto y = 0; y < map_.getMapSizeY(); y++)
+    {
+      p_map_[x][y] = &map_.cell(x,y);
+    }
   }
 }
 
