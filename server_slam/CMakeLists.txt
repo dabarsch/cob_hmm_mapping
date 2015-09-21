@@ -55,6 +55,7 @@ find_package(Boost REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  PoseNamedStamped.msg
   PointAccumulator.msg
   IntPoint.msg
   PaCell.msg
@@ -80,6 +81,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ###################################

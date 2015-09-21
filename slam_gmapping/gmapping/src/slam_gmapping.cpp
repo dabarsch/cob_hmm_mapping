@@ -150,6 +150,7 @@ SlamGMapping::SlamGMapping() :
     map_to_odom_(tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Point(0, 0, 0))), laser_count_(0), private_nh_(
         "~"), scan_filter_sub_(NULL), scan_filter_(NULL), transform_thread_(NULL), name("Robot1")
 {
+  pose_msg_.header.frame_id = tf_.resolve(map_frame_);
   seed_ = time(NULL);
   init();
 }
@@ -159,6 +160,7 @@ SlamGMapping::SlamGMapping(long unsigned int seed, long unsigned int max_duratio
         "~"), scan_filter_sub_(NULL), scan_filter_(NULL), transform_thread_(NULL), seed_(seed), tf_(
         ros::Duration(max_duration_buffer)), name("Robot1")
 {
+  pose_msg_.header.frame_id = tf_.resolve(map_frame_);
   init();
 }
 
@@ -292,6 +294,7 @@ void SlamGMapping::init()
 
   if (!private_nh_.getParam("tf_delay", tf_delay_))
     tf_delay_ = transform_publish_period_;
+
 }
 
 void SlamGMapping::startLiveSlam()
@@ -302,6 +305,7 @@ void SlamGMapping::startLiveSlam()
   sst_ = node_.advertise<nav_msgs::OccupancyGrid>("ref_map", 1, true);
   sstm_ = node_.advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
   particlePCL_ = node_.advertise<sensor_msgs::PointCloud>("particles", 1, true);
+  pose_publisher_ = node_.advertise<server_slam::PoseNamedStamped>("pose", 1, true);
 
   ss_ = node_.advertiseService("dynamic_map", &SlamGMapping::mapCallback, this);
   mapUp_ = node_.advertiseService("map_upstream", &SlamGMapping::mapUpstream, this);
@@ -309,8 +313,6 @@ void SlamGMapping::startLiveSlam()
   scan_filter_sub_ = new message_filters::Subscriber<sensor_msgs::LaserScan>(node_, "scan", 5);
   scan_filter_ = new tf::MessageFilter<sensor_msgs::LaserScan>(*scan_filter_sub_, tf_, odom_frame_, 5);
   scan_filter_->registerCallback(boost::bind(&SlamGMapping::laserCallback, this, _1));
-
-  transform_thread_ = new boost::thread(boost::bind(&SlamGMapping::publishLoop, this, transform_publish_period_));
 
   download_cl_ = node_.serviceClient<server_slam::requestSeenCells>("map_download");
   turn_off_ = node_.serviceClient<server_slam::turnOff>("robot_turn_off");
@@ -327,6 +329,7 @@ void SlamGMapping::publishLoop(double transform_publish_period)
   while (ros::ok())
   {
     publishTransform();
+    publishPose();
     r.sleep();
   }
 }
@@ -521,8 +524,8 @@ bool SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
   std::cerr << srv.request.name << std::endl;
   if (pose_request.call(srv))
   {
-    std::cerr << "x: " << srv.response.pose.x << " y: " << srv.response.pose.y << " yaw: "
-        << srv.response.pose.theta << std::endl;
+    std::cerr << "x: " << srv.response.pose.x << " y: " << srv.response.pose.y << " yaw: " << srv.response.pose.theta
+        << std::endl;
     tf::Transform map_to_odom = tf::Transform(tf::createQuaternionFromRPY(0, 0, srv.response.pose.theta),
                                               tf::Vector3(srv.response.pose.x, srv.response.pose.y, 0.0));
 
@@ -533,6 +536,8 @@ bool SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
     initialPose.theta = tf::getYaw(map_to_laser.getRotation());
 
     ROS_INFO_STREAM("Pose loaded");
+
+
     //    std::cerr << "Pose saved" << std::endl;
   }
   else
@@ -540,15 +545,12 @@ bool SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
     //    std::cerr << "Failed to save pose" << std::endl;
     ROS_ERROR("Failed to load pose");
   }
-
-  gsp_->setMatchingParameters(maxUrange_, maxRange_, sigma_, kernelSize_, lstep_, astep_, iterations_, lsigma_, ogain_,
-                              lskip_);
-
   gsp_->setMotionModelParameters(srr_, srt_, str_, stt_);
   gsp_->setUpdateDistances(linearUpdate_, angularUpdate_, resampleThreshold_);
   gsp_->setUpdatePeriod(temporalUpdate_);
-  gsp_->setgenerateMap(true);
   gsp_->GridSlamProcessor::init(particles_, xmin_, ymin_, xmax_, ymax_, delta_, initialPose);
+  gsp_->setMatchingParameters(maxUrange_, maxRange_, sigma_, kernelSize_, lstep_, astep_, iterations_, lsigma_, ogain_,
+                              lskip_);
   gsp_->setllsamplerange(llsamplerange_);
   gsp_->setllsamplestep(llsamplestep_);
 
@@ -561,6 +563,8 @@ bool SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
 
   // Call the sampling function once to set the seed.
   GMapping::sampleGaussian(1, seed_);
+
+  transform_thread_ = new boost::thread(boost::bind(&SlamGMapping::publishLoop, this, transform_publish_period_));
 
   ROS_INFO("Initialization complete");
 
@@ -649,7 +653,7 @@ void SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 
   bool b = addScan(*scan, odom_pose);
 
-  GMapping::OrientedPoint mpose = gsp_->getParticles()[gsp_->getBestParticleIndex()].pose;
+  GMapping::OrientedPoint mpose = gsp_->getParticles()[gsp_->getBestParticleIndex()]->pose;
 
   gsp_mutex_.unlock();
 
@@ -684,18 +688,16 @@ double SlamGMapping::computePoseEntropy()
 {
   double weight_total = 0.0;
 
-  for (std::vector<GMapping::Particle>::const_iterator it = gsp_->getParticles().begin();
-      it != gsp_->getParticles().end(); ++it)
+  for (auto it = gsp_->getParticles().begin(); it != gsp_->getParticles().end(); ++it)
   {
-    weight_total += it->weight;
+    weight_total += (*it)->weight;
   }
   double entropy = 0.0;
 
-  for (std::vector<GMapping::Particle>::const_iterator it = gsp_->getParticles().begin();
-      it != gsp_->getParticles().end(); ++it)
+  for (auto it = gsp_->getParticles().begin(); it != gsp_->getParticles().end(); ++it)
   {
-    if (it->weight / weight_total > 0.0)
-      entropy += it->weight / weight_total * log(it->weight / weight_total);
+    if ((*it)->weight / weight_total > 0.0)
+      entropy += (*it)->weight / weight_total * log((*it)->weight / weight_total);
   }
   return -entropy;
 }
@@ -765,7 +767,7 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
     ROS_WARN_STREAM("This should not have happened, tried to resize the map");
   }
 
-  const GMapping::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+  const GMapping::Particle& best = *gsp_->getParticles()[gsp_->getBestParticleIndex()];
 
   for (int x = 0; x < ref_map.getMapSizeX(); x++)
   {
@@ -833,11 +835,11 @@ void SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
 
   const GMapping::ParticleVector& vis_particles_ = gsp_->getParticles();
 
-  for (GMapping::ParticleVector::const_iterator it = vis_particles_.begin(); it != vis_particles_.end(); it++)
+  for (auto it = vis_particles_.begin(); it != vis_particles_.end(); it++)
   {
     geometry_msgs::Point32 point;
-    point.x = it->pose.x;
-    point.y = it->pose.y;
+    point.x = (*it)->pose.x;
+    point.y = (*it)->pose.y;
     point.z = 0;
 
     particleVis_.points.push_back(point);
@@ -866,7 +868,7 @@ bool SlamGMapping::mapUpstream(server_slam::requestSeenCells::Request & req,
 
   if (req.a == 1)
   {
-    const GMapping::Particle& best = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+    const GMapping::Particle& best = *gsp_->getParticles()[gsp_->getBestParticleIndex()];
 
     std::vector<server_slam::PaCell> temp(best.seenCells.size());
 
@@ -881,7 +883,7 @@ bool SlamGMapping::mapUpstream(server_slam::requestSeenCells::Request & req,
 
     gsp_->clearSeenCells();
 
-    const GMapping::Particle& best2 = gsp_->getParticles()[gsp_->getBestParticleIndex()];
+    const GMapping::Particle& best2 = *gsp_->getParticles()[gsp_->getBestParticleIndex()];
     return true;
   }
   else
@@ -896,6 +898,30 @@ void SlamGMapping::publishTransform()
   ros::Time tf_expiration = ros::Time::now() + ros::Duration(tf_delay_);
   tfB_->sendTransform(tf::StampedTransform(map_to_odom_, tf_expiration, map_frame_, odom_frame_));
   map_to_odom_mutex_.unlock();
+}
+
+void SlamGMapping::publishPose()
+{
+  tf::StampedTransform odom_shift;
+  try
+  {
+    tf_.lookupTransform(map_frame_, odom_frame_, ros::Time(0), odom_shift);
+  }
+  catch (tf::TransformException& e)
+  {
+    ROS_WARN("Failed to compute odom shift, skipping sc an (%s)", e.what());
+  }
+
+  pose_msg_.header.stamp = ros::Time::now();
+  pose_msg_.pose.x = odom_shift.getOrigin().x();
+  pose_msg_.pose.y = odom_shift.getOrigin().y();
+  pose_msg_.pose.theta = tf::getYaw(odom_shift.getRotation());
+  pose_msg_.name = name;
+
+  pose_publisher_.publish(pose_msg_);
+
+  ROS_DEBUG_STREAM(
+      pose_msg_.name << " x: " << pose_msg_.pose.x << " y: " << pose_msg_.pose.y << " yaw: " << pose_msg_.pose.theta);
 }
 
 void SlamGMapping::downloadLoop()
@@ -928,10 +954,10 @@ void SlamGMapping::sendDownloadRequest()
 
       for (auto particle_it = gsp_->getParticles().begin(); particle_it != gsp_->getParticles().end(); particle_it++)
       {
-        auto it = particle_it->activeCells.find(p);
-        if (it != particle_it->activeCells.end())
+        auto it = (*particle_it)->activeCells.find(p);
+        if (it != (*particle_it)->activeCells.end())
         {
-          particle_it->activeCells.erase(p);
+          (*particle_it)->activeCells.erase(p);
         }
       }
 
@@ -944,34 +970,4 @@ void SlamGMapping::sendDownloadRequest()
   }
 
   gsp_mutex_.unlock();
-
-  tf::StampedTransform odom_shift;
-  try
-  {
-    tf_.lookupTransform(map_frame_, odom_frame_, ros::Time(0), odom_shift);
-  }
-  catch (tf::TransformException& e)
-  {
-    ROS_WARN("Failed to compute odom shift, skipping sc an (%s)", e.what());
-  }
-  std::cerr << "x: " << odom_shift.getOrigin().x() << " y: " << odom_shift.getOrigin().y() << " yaw: "
-      << tf::getYaw(odom_shift.getRotation()) << std::endl;
-
-  server_slam::turnOff srv;
-  srv.request.name = name;
-  std::cerr << srv.request.name << std::endl;
-  srv.request.pose.x = odom_shift.getOrigin().x();
-  srv.request.pose.y = odom_shift.getOrigin().y();
-  srv.request.pose.theta = tf::getYaw(odom_shift.getRotation());
-
-  if (turn_off_.call(srv))
-  {
-    ROS_INFO_STREAM("Pose saved");
-//    std::cerr << "Pose saved" << std::endl;
-  }
-  else
-  {
-//    std::cerr << "Failed to save pose" << std::endl;
-    ROS_ERROR("Failed to save pose");
-  }
 }

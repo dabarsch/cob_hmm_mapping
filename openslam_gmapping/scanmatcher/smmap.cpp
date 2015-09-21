@@ -213,6 +213,5 @@ void PointAccumulator::setMsg(server_slam::PointAccumulator& msg)
   msg.visits = visits;
 
 }
-
 }
 ;

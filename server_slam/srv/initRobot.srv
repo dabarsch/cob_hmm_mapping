@@ -1,4 +1,4 @@
 string name
 ---
 server_slam/Pose pose
-server_slam/PaArray2D 2dMsg
+server_slam/PaArray2D msg2d

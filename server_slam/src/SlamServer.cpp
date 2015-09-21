@@ -31,7 +31,7 @@ SlamServer::SlamServer() :
   robot_turn_off_ = server_node_.advertiseService("robot_turn_off", &SlamServer::robotTurnOff, this);
   map_down_ = server_node_.advertiseService("map_download", &SlamServer::mapDownload, this);
   register_robot_ = server_node_.advertiseService("request_pose", &SlamServer::poseRequest, this);
-
+  pose_sub_ = server_node_.subscribe("pose", 20, &SlamServer::registerPose, this);
 
 }
 
@@ -44,7 +44,7 @@ void SlamServer::registerRobot(const std::string name)
 {
   auto rob = std::make_shared<RobotHandle>(10, server_node_, name);
   rob->setServer(shared_from_this());
-  rob_map_.insert(make_pair(name,rob));
+  rob_map_.insert(make_pair(name, rob));
   robot_count_++;
 }
 
@@ -118,21 +118,20 @@ bool SlamServer::mapDownload(server_slam::requestSeenCells::Request & req, serve
   }
 }
 
-bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req,
-                  server_slam::turnOff::Response& res)
+bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req, server_slam::turnOff::Response& res)
 {
   std::lock_guard<std::mutex> guard(saved_robots_mutex_);
   std::cerr << req.name << std::endl;
   // std::cerr << req.name.size() << std::endl;
   if (req.name.size() >= 0)
   {
-    auto success = saved_robots_.insert(std::make_pair(req.name, GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta)));
-    if(!success.second)
+    auto success = saved_robots_.insert(
+        std::make_pair(req.name, GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta)));
+    if (!success.second)
     {
       success.first->second = GMapping::OrientedPoint(req.pose.x, req.pose.y, req.pose.theta);
     }
-    std::cerr << "x: " << req.pose.x << " y: " << req.pose.y << " yaw: "
-            << req.pose.theta << std::endl;
+    std::cerr << "x: " << req.pose.x << " y: " << req.pose.y << " yaw: " << req.pose.theta << std::endl;
     return true;
   }
   else
@@ -141,8 +140,7 @@ bool SlamServer::robotTurnOff(server_slam::turnOff::Request & req,
   }
 }
 
-bool SlamServer::poseRequest(server_slam::poseRequest::Request & req,
-                  server_slam::poseRequest::Response& res)
+bool SlamServer::poseRequest(server_slam::poseRequest::Request & req, server_slam::poseRequest::Response& res)
 {
   std::lock_guard<std::mutex> guard(saved_robots_mutex_);
   auto it = saved_robots_.find(req.name);
@@ -151,11 +149,34 @@ bool SlamServer::poseRequest(server_slam::poseRequest::Request & req,
     registerRobot(req.name);
     return false;
   }
-    GMapping::OrientedPoint& temp = it->second;
-    res.pose.x = temp.x;
-    res.pose.y = temp.y;
-    res.pose.theta = temp.theta;
-    std::cerr << "x: " << res.pose.x << " y: " << res.pose.y << " yaw: "
-            << res.pose.theta << std::endl;
-    return true;
+  GMapping::OrientedPoint& temp = it->second;
+  res.pose.x = temp.x;
+  res.pose.y = temp.y;
+  res.pose.theta = temp.theta;
+  std::cerr << "x: " << res.pose.x << " y: " << res.pose.y << " yaw: " << res.pose.theta << std::endl;
+  return true;
+}
+
+void SlamServer::registerPose(const server_slam::PoseNamedStamped::ConstPtr& msg)
+{
+  ROS_DEBUG_STREAM("I entered the Function");
+  std::lock_guard<std::mutex> guard(saved_robots_mutex_);
+  if (msg->name.size() >= 0)
+  {
+    ROS_DEBUG_STREAM(
+          msg->name << " x: " << msg->pose.x << " y: " << msg->pose.y << " yaw: " << msg->pose.theta);
+    auto it = saved_robots_.find(msg->name);
+    if (it == saved_robots_.end())
+    {
+      saved_robots_.insert( {msg->name, GMapping::OrientedPoint(msg->pose.x, msg->pose.y, msg->pose.theta)});
+    }
+    else
+    {
+      it->second = GMapping::OrientedPoint(msg->pose.x, msg->pose.y, msg->pose.theta);
+    }
+  }
+  else
+  {
+    ROS_ERROR_STREAM("No name transmitted");
+  }
 }

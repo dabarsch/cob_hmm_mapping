@@ -11,8 +11,6 @@
 #include <memory>
 #include <boost/multi_array.hpp>
 
-
-
 #define SIGHT_INC 1
 
 namespace GMapping
@@ -36,20 +34,10 @@ struct PointAccumulator
   /*after begin*/
   PointAccumulator() :
       acc(0, 0), n(0), visits(0), switches(0), lastObs(no), A { { {0.8, 0.2}, {0.1, 0.9}}}, B {
-          { {0.7, 0.2, 0.1}, {0.2, 0.7, 0.1}}},
-          Phi { { { { { { {1e-10, 1e-10},
-                          {1e-10, 1e-10},
-                          {1e-10, 1e-10}}},
-                      { { {1e-10, 1e-10},
-                          {1e-10, 1e-10},
-                          {1e-10, 1e-10}}}}},
-                  { { { { {1e-10, 1e-10},
-                          {1e-10, 1e-10},
-                          {1e-10, 1e-10}}},
-                      { { {1e-10, 1e-10},
-                          {1e-10, 1e-10},
-                          {1e-10, 1e-10}}}}}}},
-                          Q { {
+          { {0.7, 0.2, 0.1}, {0.2, 0.7, 0.1}}}, Phi { { { { { { {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}, { {
+          {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}},
+                                                       { { { { {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}, { {
+                                                           {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}}}}, Q { {
           0.5, 0.5}}, eta(0.001), Gamma { { {0, 0}, {0, 0}}}, updated(false), unseenCount(0), unseenLimit(3)
   {
   }
@@ -61,7 +49,7 @@ struct PointAccumulator
                                                        { { { { {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}, { {
                                                            {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}}}}, Q { {
           0.5, 0.5}}, eta(0.001), updated(false), unseenCount(0), unseenLimit(3)
-  {//void PointAccumulator::calcSteps()
+  { //void PointAccumulator::calcSteps()
     assert(i == -1);
   }
 
@@ -117,6 +105,7 @@ struct PointAccumulator
   inline void calcSteps();
   void setfromMsg(const server_slam::PointAccumulator& msg);
   void setMsg(server_slam::PointAccumulator& msg);
+  inline void updateIfNotSeen();
 
   static const PointAccumulator& Unknown();
   static PointAccumulator *unknown_ptr;
@@ -192,10 +181,22 @@ int PointAccumulator::getPfo()
   return visits ? (int)(A[0][1] * 100 + 0.5) : -1;
 }
 
+inline void PointAccumulator::updateIfNotSeen()
+{
+  if (updated)
+  {
+    updated = false;
+  }
+  else
+  {
+    updateNew(no);
+  }
+}
+
 typedef Map<PointAccumulator, HierarchicalArray2D<PointAccumulator>> ScanMatcherMap;
 typedef std::unordered_map<IntPoint, std::shared_ptr<PointAccumulator>> SmUnorderedMap;
 typedef std::unordered_set<IntPoint> PointUnoSet;
-typedef boost::multi_array<std::shared_ptr<PointAccumulator>, 2> SmPointerMap;
+typedef boost::multi_array<const PointAccumulator*, 2> SmPointerMap;
 typedef SmPointerMap::index index;
 }
 ;

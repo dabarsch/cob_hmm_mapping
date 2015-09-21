@@ -102,7 +102,7 @@ void GridSlamProcessor::setMatchingParameters(double urange, double range, doubl
                                               double likelihoodGain, unsigned int likelihoodSkip)
 {
   m_obsSigmaGain = likelihoodGain;
-  m_matcher.setMatchingParameters(urange, range, sigma, kernsize, lopt, aopt, iterations, likelihoodSigma,
+  m_matcher.setMatchingParameters(m_refMap_ptr, urange, range, sigma, kernsize, lopt, aopt, iterations, likelihoodSigma,
                                   likelihoodSkip);
 
   ROS_INFO_STREAM(
@@ -179,10 +179,10 @@ void GridSlamProcessor::init(unsigned int size, double xmin, double ymin, double
 
   for (unsigned int i = 0; i < size; i++)
   {
-    m_particles.push_back(Particle(*m_refMap_ptr));
-    m_particles.back().pose = initialPose;
+    m_particles.push_back(std::make_shared<Particle>(*m_refMap_ptr));
+    m_particles.back()->pose = initialPose;
     //m_particles.back().previousPose = initialPose;
-    m_particles.back().setWeight(0);
+    m_particles.back()->setWeight(0);
     //m_particles.back().previousIndex = 0;
 
     // this is not needed
@@ -216,8 +216,8 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
   // motion model
   for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
   {
-    OrientedPoint& pose(it->pose);
-    pose = m_motionModel.drawFromMotion(it->pose, relPose, m_odoPose);
+    OrientedPoint& pose((*it)->pose);
+    pose = m_motionModel.drawFromMotion((*it)->pose, relPose, m_odoPose);
   }
 
   // invoke the callback
@@ -294,6 +294,7 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
     {
       ROS_INFO_STREAM("Registering First Scan");
 
+
       for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
       {
         // m_matcher.invalidateActiveArea();
@@ -303,14 +304,8 @@ bool GridSlamProcessor::processScan(const RangeReading& reading, int adaptPartic
         // it->pose, plainReading);
         //        m_matcher.registerSeenCells(it->seenCells, *m_refMap_ptr,
         // it->pose, plainReading);
-        m_matcher.registerCells(it->seenCells, it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-
-        // cyr: not needed anymore, particles refer to the root in the
-        // beginning!
-        //        TNode* node = new TNode(it->pose, 0., it->node, 0);
-        //        //node->reading=0;
-        //        node->reading = reading_copy;
-        //        it->node = node;
+//        ROS_DEBUG_STREAM_NAMED("newParticle", "going to register cells");
+        m_matcher.registerCells(*it, plainReading);
       }
     }
 
@@ -341,9 +336,9 @@ int GridSlamProcessor::getBestParticleIndex() const
   double bw = -std::numeric_limits<double>::max();
 
   for (unsigned int i = 0; i < m_particles.size(); i++)
-    if (bw < m_particles[i].weightSum)
+    if (bw < m_particles[i]->weightSum)
     {
-      bw = m_particles[i].weightSum;
+      bw = m_particles[i]->weightSum;
       bi = i;
     }
   return (int)bi;
@@ -353,7 +348,7 @@ void GridSlamProcessor::clearSeenCells()
 {
   for (auto it = m_particles.begin(); it != m_particles.end(); it++)
   {
-    it->seenCells.clear();
+    (*it)->seenCells.clear();
   }
 }
 

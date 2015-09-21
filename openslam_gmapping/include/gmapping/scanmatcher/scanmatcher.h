@@ -6,6 +6,8 @@
 #include <gmapping/utils/stat.h>
 #include <iostream>
 #include <gmapping/utils/gvalues.h>
+#include <gmapping/particlefilter/Particle.h>
+
 #define LASER_MAXBEAMS 2048
 
 // GCC Bugfix
@@ -26,11 +28,13 @@ public:
                   const SmUnorderedMap& active) const;
 
   void setLaserParameters(unsigned int beams, double *angles, const OrientedPoint& lpose);
-  void setMatchingParameters(double urange, double range, double sigma, int kernsize, double lopt, double aopt,
+  void setMatchingParameters(std::shared_ptr<const ScanMatcherMap> map, double urange, double range, double sigma, int kernsize, double lopt, double aopt,
                              int iterations, double likelihoodSigma = 1, unsigned int likelihoodSkip = 0);
 
-  void registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map,
-                     const OrientedPoint & p, const double *readings);
+//  void registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map,
+//                     const OrientedPoint & p, const double *readings);
+
+  void registerCells(const std::shared_ptr<Particle> particle, const double *readings);
 
   inline double score(const ScanMatcherMap& map, const OrientedPoint & p, const double *readings,
                       const SmUnorderedMap& active) const;
@@ -95,7 +99,7 @@ PARAM_SET_GET(double, usableRange, protected, public, public)PARAM_SET_GET(doubl
     lasamplestep,
   protected,
   public,
-  public)PARAM_SET_GET(bool, generateMap, protected, public, public)PARAM_SET_GET(double,
+  public)PARAM_SET_GET(double,
     enlargeStep,
   protected,
   public,
@@ -111,6 +115,9 @@ PARAM_SET_GET(double, usableRange, protected, public, public)PARAM_SET_GET(doubl
 
   // allocate this large array only once
   IntPoint * m_linePoints;
+
+private:
+  std::shared_ptr<const ScanMatcherMap> map_;
 };
 
 inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint& p, const double *readings,
@@ -153,7 +160,7 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 
         // AccessibilityState s=map.storage().cellState(pr);
         // if (s&Inside && s&Allocated){
-        // TODO: reinitilizing is a poor solution...
+        // #TODO:0 reinitilizing is a poor solution...
 //        const PointAccumulator& cell = map.cell(pr);
 //        auto it = active.find(pr);
 //        if (it != active.end())

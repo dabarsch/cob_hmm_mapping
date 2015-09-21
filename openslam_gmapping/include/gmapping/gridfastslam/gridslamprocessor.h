@@ -46,8 +46,6 @@ class GridSlamProcessor
 {
 public:
 
-
-
   /** Constructs a GridSlamProcessor, initialized with the default parameters
    */
   GridSlamProcessor();
@@ -225,10 +223,6 @@ MEMBER_PARAM_SET_GET(m_matcher,
   public)
   ;
 
-  /**generate an accupancy grid map [scanmatcher]*/
-MEMBER_PARAM_SET_GET(m_matcher, bool, generateMap, protected, public, public)
-  ;
-
   /**enlarge the map when the robot goes out of the boundaries [scanmatcher]*/
 MEMBER_PARAM_SET_GET(m_matcher, bool, enlargeStep, protected, public, public)
   ;
@@ -358,6 +352,8 @@ private:
   // return if a resampling occured or not
   inline bool resample(const double *plainReading, int adaptParticles, const RangeReading *rr = 0);
 
+  inline void updateRefMap();
+
 };
 
 /**Just scan match every single particle.
@@ -373,12 +369,12 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
   {
     OrientedPoint corrected;
     double score, l, s;
-    score = m_matcher.optimize(corrected, *m_refMap_ptr, it->pose, plainReading, it->activeCells);
+    score = m_matcher.optimize(corrected, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->activeCells);
 
     //    it->pose=corrected;
     if (score > m_minimumScore)
     {
-      it->pose = corrected;
+      (*it)->pose = corrected;
     }
     else
     {
@@ -387,10 +383,10 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
       ROS_INFO_STREAM("op:" << m_odoPose.x << " " << m_odoPose.y << " " << m_odoPose.theta);
     }
 
-    m_matcher.likelihoodAndScore(s, l, *m_refMap_ptr, it->pose, plainReading, it->activeCells);
+    m_matcher.likelihoodAndScore(s, l, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->activeCells);
     sumScore += score;
-    it->weight += l;
-    it->weightSum += l;
+    (*it)->weight += l;
+    (*it)->weightSum += l;
 
   }
 
@@ -405,7 +401,7 @@ inline void GridSlamProcessor::normalize()
 
   for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
   {
-    lmax = it->weight > lmax ? it->weight : lmax;
+    lmax = (*it)->weight > lmax ? (*it)->weight : lmax;
   }
 
   // cout << "!!!!!!!!!!! maxwaight= "<< lmax << endl;
@@ -414,9 +410,9 @@ inline void GridSlamProcessor::normalize()
   double wcum = 0;
   m_neff = 0;
 
-  for (std::vector<Particle>::iterator it = m_particles.begin(); it != m_particles.end(); it++)
+  for (auto it = m_particles.begin(); it != m_particles.end(); it++)
   {
-    m_weights.push_back(exp(gain * (it->weight - lmax)));
+    m_weights.push_back(exp(gain * ((*it)->weight - lmax)));
     wcum += m_weights.back();
 
     // cout << "l=" << it->weight<< endl;
@@ -437,27 +433,12 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 {
   bool hasResampled = false;
 
-//    TNodeVector oldGeneration;
-//
-//    for (unsigned int i = 0; i < m_particles.size(); i++)
-//    {
-//      oldGeneration.push_back(m_particles[i].node);
-//    }
-
   if (m_neff < m_resampleThreshold * m_particles.size())
   {
 
     ROS_INFO_STREAM("*************RESAMPLE***************");
 
     uniform_resampler<double, double> resampler;
-
-    // HMM Extension
-//      const Particle& best = m_particles[getBestParticleIndex()];
-//
-//      for (auto it = best.activeCells.begin(); it != best.activeCells.end(); it++)
-//      {
-//        m_refMap_ptr->cell(it->first) = *it->second;
-//      }
 
     m_indexes = resampler.resampleIndexes(m_weights, adaptSize);
 
@@ -484,26 +465,8 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
       if (j == m_indexes[i])
         j++;
-      Particle& p = m_particles[m_indexes[i]];
-//        TNode    *node    = 0;
-//        TNode    *oldNode = oldGeneration[m_indexes[i]];
+      temp.push_back(m_particles[m_indexes[i]]);
 
-      //			cerr << i << "->" << m_indexes[i] <<
-      // "B("<<oldNode->childs <<") ";
-//        node = new TNode(p.pose,
-//                         0,
-//                         oldNode,
-//                         0);
-//
-//        // node->reading=0;
-//        node->reading = reading;
-
-      //			cerr << "A("<<node->parent->childs <<") "
-      // <<endl;
-
-      temp.push_back(p);
-//        temp.back().node          = node;
-      //temp.back().previousIndex = m_indexes[i];
     }
 
     while (j < m_indexes.size())
@@ -511,9 +474,6 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
       deletedParticles.push_back(j);
       j++;
     }
-
-    //		cerr << endl;
-    std::cerr << "Deleting Nodes:";
 
     for (unsigned int i = 0; i < deletedParticles.size(); i++)
     {
@@ -531,14 +491,9 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
     for (ParticleVector::iterator it = temp.begin(); it != temp.end(); it++)
     {
-      it->setWeight(0);
-      //it->activeCells.clear();
-      //m_matcher.invalidateActiveArea();
-      //m_matcher.registerScan(it->map, it->pose, plainReading);
-//        m_matcher.registerActiveCells(it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-//        m_matcher.registerSeenCells(it->seenCells, *m_refMap_ptr, it->pose, plainReading);
-      m_matcher.registerCells(it->seenCells, it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-      m_particles.push_back(*it);
+      m_particles.push_back(std::make_shared<Particle>(**it));
+      m_particles.back()->setWeight(0);
+      m_matcher.registerCells(m_particles.back(), plainReading);
     }
     std::cerr << " Done" << std::endl;
     hasResampled = true;
@@ -551,27 +506,7 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
     for (ParticleVector::iterator it = m_particles.begin(); it != m_particles.end(); it++)
     {
-      // create a new node in the particle tree and add it to the old tree
-      // BEGIN: BUILDING TREE
-//        TNode *node = 0;
-//        node = new TNode(it->pose,
-//                         0.0,
-//                            *node_it,
-//                         0);
-//
-//        // node->reading=0;
-//        node->reading = reading;
-//        it->node      = node;
-
-      // END: BUILDING TREE
-      //m_matcher.invalidateActiveArea();
-      //m_matcher.registerScan(it->map, it->pose, plainReading);
-//        m_matcher.registerActiveCells(it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-//        m_matcher.registerSeenCells(it->seenCells, *m_refMap_ptr, it->pose, plainReading);
-      m_matcher.registerCells(it->seenCells, it->activeCells, *m_refMap_ptr, it->pose, plainReading);
-    //  it->previousIndex = index;
-      index++;
-//        node_it++;
+      m_matcher.registerCells(*it, plainReading);
     }
     std::cerr << "Done" << std::endl;
   }
@@ -580,6 +515,18 @@ inline bool GridSlamProcessor::resample(const double *plainReading, int adaptSiz
 
   return hasResampled;
 }
+
+inline void GridSlamProcessor::updateRefMap()
+{
+  for (int x = 0; x < m_refMap_ptr->getMapSizeX(); x++)
+  {
+    for (int y = 0; y < m_refMap_ptr->getMapSizeY(); y++)
+    {
+      m_refMap_ptr->cell(x,y).updateNew(no);
+    }
+  }
+}
+
 }
 ;
 

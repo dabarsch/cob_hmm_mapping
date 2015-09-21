@@ -17,6 +17,7 @@
 /* Author: Brian Gerkey */
 
 #include <ros/ros.h>
+#include <ros/console.h>
 
 #include "slam_gmapping.h"
 
@@ -25,6 +26,9 @@
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "slam_gmapping");
+//  if( ros::console::set_logger_level("ros.openslam_gmapping", ros::console::levels::Debug) ) {
+//     ros::console::notifyLoggerLevelsChanged();
+//  }
 
   SlamGMapping gn;
   gn.startLiveSlam();
@@ -33,4 +37,5 @@ int main(int argc, char** argv)
 
   return (0);
 }
+
 

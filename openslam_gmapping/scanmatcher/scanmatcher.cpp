@@ -58,107 +58,148 @@ ScanMatcher::~ScanMatcher()
   delete[] m_linePoints;
 }
 
-void ScanMatcher::registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map,
-                                const OrientedPoint & p, const double *readings)
+void ScanMatcher::registerCells(const std::shared_ptr<Particle> particle, const double *readings)
 {
-  OrientedPoint lp = p;
+  OrientedPoint lp = particle->getPose();
+  OrientedPoint p = lp;
+
+//  ROS_DEBUG_STREAM_NAMED("newParticle", "got the poses");
 
   lp.x += cos(p.theta) * m_laserPose.x - sin(p.theta) * m_laserPose.y;
   lp.y += sin(p.theta) * m_laserPose.x + cos(p.theta) * m_laserPose.y;
   lp.theta += m_laserPose.theta;
-  IntPoint p0 = map.world2map(lp);
+//  ROS_DEBUG_STREAM_NAMED("newParticle", "before world to map");
+  IntPoint p0 = map_->world2map(lp);
+//  ROS_DEBUG_STREAM_NAMED("newParticle", "after world to map");
 
   const double *angle = m_laserAngles + m_initialBeamsSkip;
   double esum = 0;
 
+//  ROS_DEBUG_STREAM_NAMED("newParticle", "before the loop");
   for (const double *r = readings + m_initialBeamsSkip; r < readings + m_laserBeams; r++, angle++)
-    if (m_generateMap)
+  {
+    double d = *r;
+
+//    ROS_DEBUG_STREAM_NAMED("newParticle", "after the d");
+
+    if ((d > m_laserMaxRange) || (d == 0.0) || std::isnan(d))
+      continue;
+
+    if (d > m_usableRange)
+      d = m_usableRange;
+    Point phit = lp + Point(d * cos(lp.theta + *angle), d * sin(lp.theta + *angle));
+    IntPoint p1 = map_->world2map(phit);
+
+    // IntPoint linePoints[20000] ;
+    GridLineTraversalLine line;
+    line.points = m_linePoints;
+    GridLineTraversal::gridLine(p0, p1, &line);
+
+//    ROS_DEBUG_STREAM_NAMED("newParticle", "Calculated the line");
+
+    for (int i = 0; i < line.num_points - 1; i++)
     {
-      double d = *r;
-
-      if ((d > m_laserMaxRange) || (d == 0.0) || std::isnan(d))
-        continue;
-
-      if (d > m_usableRange)
-        d = m_usableRange;
-      Point phit = lp + Point(d * cos(lp.theta + *angle), d * sin(lp.theta + *angle));
-      IntPoint p1 = map.world2map(phit);
-
-      // IntPoint linePoints[20000] ;
-      GridLineTraversalLine line;
-      line.points = m_linePoints;
-      GridLineTraversal::gridLine(p0, p1, &line);
-
-      for (int i = 0; i < line.num_points - 1; i++)
-      {
-        // PointAccumulator& cell = map.cell(line.points[i]);
-        // double e = -cell.entropy();
-
-        // HMM Extensifdson
-
-        seenCells.insert(line.points[i]);
-
-        auto it = activeCells.find(line.points[i]);
-        if (it == activeCells.end())
-        {
-          std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(line.points[i]));
-          newCell->updateNew(miss, Point(0, 0));
-          activeCells.insert( {line.points[i], newCell});
-        }
-        else
-        {
-          it->second->updateNew(miss, Point(0, 0));
-        }
-
-      }
-
-      if (d < m_usableRange)
-      {
-        // HMM Extensifdson
-
-        seenCells.insert(p1);
-
-        auto it = activeCells.find(p1);
-        if (it == activeCells.end())
-        {
-          std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(p1));
-          newCell->updateNew(hit, phit);
-          activeCells.insert( {p1, newCell});
-        }
-        else
-        {
-          it->second->updateNew(hit, phit);
-        }
-
-      }
+      particle->updateCell(line.points[i], miss);
     }
-    else
+
+    if (d < m_usableRange)
     {
-      if ((*r > m_laserMaxRange) || (*r > m_usableRange) || (*r == 0.0) || std::isnan(*r))
-        continue;
-      Point phit = lp;
-      phit.x += *r * cos(lp.theta + *angle);
-      phit.y += *r * sin(lp.theta + *angle);
-      IntPoint p1 = map.world2map(phit);
-      assert(p1.x >= 0 && p1.y >= 0);
+      particle->updateCell(p1, hit, phit);
+    }
+  }
 
-      // HMM Extensison
+}
 
-      seenCells.insert(p1);
-
-      auto it = activeCells.find(p1);
-      if (it == activeCells.end())
-      {
-        std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(p1));
-        newCell->updateNew(hit, phit);
-        activeCells.insert( {p1, newCell});
-      }
-      else
-      {
-        it->second->updateNew(hit, phit);
-      }
-
-//      if (activeCells.count(p1) == 0)
+//void ScanMatcher::registerCells(PointUnoSet & seenCells, SmUnorderedMap & activeCells, const ScanMatcherMap& map,
+//                                const OrientedPoint & p, const double *readings)
+//{
+//  OrientedPoint lp = p;
+//
+//  lp.x += cos(p.theta) * m_laserPose.x - sin(p.theta) * m_laserPose.y;
+//  lp.y += sin(p.theta) * m_laserPose.x + cos(p.theta) * m_laserPose.y;
+//  lp.theta += m_laserPose.theta;
+//  IntPoint p0 = map.world2map(lp);
+//
+//  const double *angle = m_laserAngles + m_initialBeamsSkip;
+//  double esum = 0;
+//
+//  for (const double *r = readings + m_initialBeamsSkip; r < readings + m_laserBeams; r++, angle++)
+//    if (m_generateMap)
+//    {
+//      double d = *r;
+//
+//      if ((d > m_laserMaxRange) || (d == 0.0) || std::isnan(d))
+//        continue;
+//
+//      if (d > m_usableRange)
+//        d = m_usableRange;
+//      Point phit = lp + Point(d * cos(lp.theta + *angle), d * sin(lp.theta + *angle));
+//      IntPoint p1 = map.world2map(phit);
+//
+//      // IntPoint linePoints[20000] ;
+//      GridLineTraversalLine line;
+//      line.points = m_linePoints;
+//      GridLineTraversal::gridLine(p0, p1, &line);
+//
+//      for (int i = 0; i < line.num_points - 1; i++)
+//      {
+//        // PointAccumulator& cell = map.cell(line.points[i]);
+//        // double e = -cell.entropy();
+//
+//        // HMM Extensifdson
+//
+//        seenCells.insert(line.points[i]);
+//
+//        auto it = activeCells.find(line.points[i]);
+//        if (it == activeCells.end())
+//        {
+//          std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(line.points[i]));
+//          newCell->updateNew(miss, Point(0, 0));
+//          activeCells.insert( {line.points[i], newCell});
+//        }
+//        else
+//        {
+//          it->second->updateNew(miss, Point(0, 0));
+//        }
+//
+//      }
+//
+//      if (d < m_usableRange)
+//      {
+//        // HMM Extensifdson
+//
+//        seenCells.insert(p1);
+//
+//        auto it = activeCells.find(p1);
+//        if (it == activeCells.end())
+//        {
+//          std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(p1));
+//          newCell->updateNew(hit, phit);
+//          activeCells.insert( {p1, newCell});
+//        }
+//        else
+//        {
+//          it->second->updateNew(hit, phit);
+//        }
+//
+//      }
+//    }
+//    else
+//    {
+//      if ((*r > m_laserMaxRange) || (*r > m_usableRange) || (*r == 0.0) || std::isnan(*r))
+//        continue;
+//      Point phit = lp;
+//      phit.x += *r * cos(lp.theta + *angle);
+//      phit.y += *r * sin(lp.theta + *angle);
+//      IntPoint p1 = map.world2map(phit);
+//      assert(p1.x >= 0 && p1.y >= 0);
+//
+//      // HMM Extensison
+//
+//      seenCells.insert(p1);
+//
+//      auto it = activeCells.find(p1);
+//      if (it == activeCells.end())
 //      {
 //        std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(p1));
 //        newCell->updateNew(hit, phit);
@@ -166,35 +207,46 @@ void ScanMatcher::registerCells(PointUnoSet & seenCells, SmUnorderedMap & active
 //      }
 //      else
 //      {
-//        assert(activeCells.count(p1) == 1);
-//        activeCells.at(p1)->updateNew(hit, phit);
+//        it->second->updateNew(hit, phit);
 //      }
-    }
-
-  for (auto it = activeCells.begin(); it != activeCells.end(); it++)
-  {
-    if (it->second->updated)
-    {
-      it->second->updated = false;
-    }
-    else
-    {
-      it->second->updateNew(no);
-    }
-  }
-
-  // while(it!= activeCells.end())
-  // {
-  //   if (it->second->toDelete())
-  //   {
-  //     it = activeCells.erase(it);
-  //   }
-  //   else
-  //   {
-  //     it++;
-  //   }
-  // }
-}
+//
+////      if (activeCells.count(p1) == 0)
+////      {
+////        std::shared_ptr<PointAccumulator> newCell = std::make_shared<PointAccumulator>(map.cell(p1));
+////        newCell->updateNew(hit, phit);
+////        activeCells.insert( {p1, newCell});
+////      }
+////      else
+////      {
+////        assert(activeCells.count(p1) == 1);
+////        activeCells.at(p1)->updateNew(hit, phit);
+////      }
+//    }
+//
+//  for (auto it = activeCells.begin(); it != activeCells.end(); it++)
+//  {
+//    if (it->second->updated)
+//    {
+//      it->second->updated = false;
+//    }
+//    else
+//    {
+//      it->second->updateNew(no);
+//    }
+//  }
+//
+//  // while(it!= activeCells.end())
+//  // {
+//  //   if (it->second->toDelete())
+//  //   {
+//  //     it = activeCells.erase(it);
+//  //   }
+//  //   else
+//  //   {
+//  //     it++;
+//  //   }
+//  // }
+//}
 
 double ScanMatcher::optimize(OrientedPoint & pnew, const ScanMatcherMap& map, const OrientedPoint & init,
                              const double *readings, const SmUnorderedMap& active) const
@@ -337,10 +389,11 @@ void ScanMatcher::setLaserParameters(unsigned int beams, double *angles, const O
   memcpy(m_laserAngles, angles, sizeof(double) * m_laserBeams);
 }
 
-void ScanMatcher::setMatchingParameters(double urange, double range, double sigma, int kernsize, double lopt,
+void ScanMatcher::setMatchingParameters(std::shared_ptr<const ScanMatcherMap> map, double urange, double range, double sigma, int kernsize, double lopt,
                                         double aopt, int iterations, double likelihoodSigma,
                                         unsigned int likelihoodSkip)
 {
+  map_ = map;
   m_usableRange = urange;
   m_laserMaxRange = range;
   m_kernelSize = kernsize;

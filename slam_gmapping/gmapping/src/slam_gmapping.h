@@ -26,6 +26,7 @@
 #include "server_slam/PointAccumulator.h"
 #include "server_slam/turnOff.h"
 #include "server_slam/poseRequest.h"
+#include "server_slam/PoseNamedStamped.h"
 
 #include "tf/transform_listener.h"
 #include "tf/transform_broadcaster.h"
@@ -51,6 +52,7 @@ public:
   void startLiveSlam();
   void startReplay(const std::string& bag_fname, std::string scan_topic);
   void publishTransform();
+  void publishPose();
 
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan);
   bool mapCallback(nav_msgs::GetMap::Request & req, nav_msgs::GetMap::Response& res);
@@ -72,6 +74,7 @@ private:
   ros::Publisher particlePCL_;
   ros::Publisher sst_;
   ros::Publisher sstm_;
+  ros::Publisher pose_publisher_;
   ros::ServiceServer ss_;
   ros::ServiceServer mapUp_;
 
@@ -99,6 +102,8 @@ private:
   nav_msgs::GetMap::Response ref_map_;
   nav_msgs::GetMap::Response seen_map_;
   nav_msgs::GetMap::Response active_map_;
+
+  server_slam::PoseNamedStamped pose_msg_;
 
   ros::Duration map_update_interval_;
   tf::Transform map_to_odom_;
