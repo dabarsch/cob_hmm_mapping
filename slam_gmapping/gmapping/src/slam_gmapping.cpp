@@ -137,6 +137,7 @@
 
 #include "gmapping/sensor/sensor_range/rangesensor.h"
 #include "gmapping/sensor/sensor_odometry/odometrysensor.h"
+#include "gmapping/particlefilter/Particle.h"
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -938,13 +939,13 @@ void SlamGMapping::sendDownloadRequest()
 {
   boost::mutex::scoped_lock map_lock(map_mutex_);
 
-  gsp_mutex_.lock();
-
   download_srv_.request.a = 1;
 
   if (download_cl_.call(download_srv_))
   {
     ROS_INFO("I got a response");
+
+    gsp_mutex_.lock();
 
     for (int i = 0; i < download_srv_.response.b.size(); i++)
     {
@@ -954,14 +955,12 @@ void SlamGMapping::sendDownloadRequest()
 
       for (auto particle_it = gsp_->getParticles().begin(); particle_it != gsp_->getParticles().end(); particle_it++)
       {
-        auto it = (*particle_it)->activeCells.find(p);
-        if (it != (*particle_it)->activeCells.end())
-        {
-          (*particle_it)->activeCells.erase(p);
-        }
+        (*particle_it)->removeActive(p);
       }
 
     }
+
+    gsp_mutex_.unlock();
 
   }
   else
@@ -969,5 +968,5 @@ void SlamGMapping::sendDownloadRequest()
     ROS_ERROR("Failed to call service");
   }
 
-  gsp_mutex_.unlock();
+
 }

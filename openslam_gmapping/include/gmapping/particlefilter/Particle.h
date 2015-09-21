@@ -26,6 +26,7 @@ public:
   inline void updateCell(const IntPoint& p, Obs obs, const Point& pHit = {0, 0});
   inline OrientedPoint getPose();
   inline void updateRemaining();
+  inline void removeActive(const IntPoint& p);
 
   // public member
   OrientedPoint pose;
@@ -41,7 +42,6 @@ public:
 private:
   // private functions
   inline std::shared_ptr<PointAccumulator> insertActive(const IntPoint& p);
-  inline void removeActive(const IntPoint& p);
   inline void initPtrMap();
 
   // private member
