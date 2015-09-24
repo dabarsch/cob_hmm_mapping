@@ -59,8 +59,11 @@ public:
   //virtual ~GridSlamProcessor();
   // methods for accessing the parameters
   void setSensorMap(const SensorMap& smap);
-  void init(unsigned int size, double xmin, double ymin, double xmax, double ymax, double delta,
-            OrientedPoint initialPose = OrientedPoint(0, 0, 0));
+//  void init(unsigned int size, double xmin, double ymin, double xmax, double ymax, double delta,
+//            OrientedPoint initialPose = OrientedPoint(0, 0, 0));
+
+  void init(unsigned int size, const Point& center, int xmax, int ymax, double delta, const OrientedPoint& initialPose =
+                OrientedPoint(0, 0, 0));
   void setMatchingParameters(double urange, double range, double sigma, int kernsize, double lopt, double aopt,
                              int iterations, double likelihoodSigma = 1, double likelihoodGain = 1,
                              unsigned int likelihoodSkip = 0);
@@ -297,12 +300,6 @@ PARAM_SET_GET(double, resampleThreshold, protected, public, public)
   public)
   ;
 
-  // processing parameters (size of the map)
-PARAM_GET(double, xmin, protected, public)
-  ;PARAM_GET(double, ymin, protected, public)
-  ;PARAM_GET(double, xmax, protected, public)
-  ;PARAM_GET(double, ymax, protected, public)
-  ;
 
   // processing parameters (resolution of the map)
 PARAM_GET(double, delta, protected, public)
@@ -369,7 +366,7 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
   {
     OrientedPoint corrected;
     double score, l, s;
-    score = m_matcher.optimize(corrected, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->activeCells);
+    score = m_matcher.optimize(corrected, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->p_map_);
 
     //    it->pose=corrected;
     if (score > m_minimumScore)
@@ -383,7 +380,7 @@ inline void GridSlamProcessor::scanMatch(const double *plainReading)
       ROS_INFO_STREAM("op:" << m_odoPose.x << " " << m_odoPose.y << " " << m_odoPose.theta);
     }
 
-    m_matcher.likelihoodAndScore(s, l, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->activeCells);
+    m_matcher.likelihoodAndScore(s, l, *m_refMap_ptr, (*it)->pose, plainReading, (*it)->p_map_);
     sumScore += score;
     (*it)->weight += l;
     (*it)->weightSum += l;
@@ -424,6 +421,7 @@ inline void GridSlamProcessor::normalize()
   {
     *it = *it / wcum;
     double w = *it;
+    std::cerr << w << std::endl;
     m_neff += w * w;
   }
   m_neff = 1. / m_neff;
@@ -522,7 +520,7 @@ inline void GridSlamProcessor::updateRefMap()
   {
     for (int y = 0; y < m_refMap_ptr->getMapSizeY(); y++)
     {
-      m_refMap_ptr->cell(x,y).updateNew(no);
+      m_refMap_ptr->cell(x, y).updateNew(no);
     }
   }
 }

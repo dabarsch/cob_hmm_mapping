@@ -60,6 +60,8 @@ add_message_files(
   IntPoint.msg
   PaCell.msg
   Pose.msg
+  PaArray.msg
+  PaArray2D.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -68,6 +70,7 @@ add_service_files(
   requestSeenCells.srv
   turnOff.srv
   poseRequest.srv
+  initRobot.srv
 )
 
 ## Generate actions in the 'action' folder

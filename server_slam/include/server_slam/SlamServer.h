@@ -18,6 +18,7 @@
 #include "server_slam/turnOff.h"
 #include "server_slam/poseRequest.h"
 #include "server_slam/PoseNamedStamped.h"
+#include "server_slam/initRobot.h"
 
 class SlamServer : public std::enable_shared_from_this<SlamServer>
 
@@ -25,6 +26,7 @@ class SlamServer : public std::enable_shared_from_this<SlamServer>
 
 public:
   SlamServer();
+  SlamServer(const nav_msgs::GetMapResponse& map);
   ~SlamServer();
   void registerRobot(const std::string name);
   void updateMapSegment(server_slam::requestSeenCells::Response& response);
@@ -37,6 +39,7 @@ public:
   bool poseRequest(server_slam::poseRequest::Request & req,
                     server_slam::poseRequest::Response& res);
   void registerPose(const server_slam::PoseNamedStamped::ConstPtr& msg);
+  bool initRobot(server_slam::initRobot::Request & req, server_slam::initRobot::Response& res);
 
 
 private:
@@ -46,6 +49,7 @@ private:
   ros::ServiceServer map_down_;
   ros::ServiceServer robot_turn_off_;
   ros::ServiceServer register_robot_;
+  ros::ServiceServer init_robot_;
   nav_msgs::GetMap::Response map_msg_;
   tf::TransformListener tf_;
   ros::Subscriber pose_sub_;

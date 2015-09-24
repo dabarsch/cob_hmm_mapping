@@ -2,3 +2,5 @@ string name
 ---
 server_slam/Pose pose
 server_slam/PaArray2D msg2d
+geometry_msgs/Point32 origin
+float32 delta

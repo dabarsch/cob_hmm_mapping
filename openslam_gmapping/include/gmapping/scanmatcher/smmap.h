@@ -1,5 +1,6 @@
 #ifndef SMMAP_H
 #define SMMAP_H
+#include <ros/assert.h>
 #include <array>
 #include <unordered_map>
 #include <gmapping/grid/map.h>
@@ -38,7 +39,7 @@ struct PointAccumulator
           {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}},
                                                        { { { { {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}, { {
                                                            {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}}}}, Q { {
-          0.5, 0.5}}, eta(0.001), Gamma { { {0, 0}, {0, 0}}}, updated(false), unseenCount(0), unseenLimit(3)
+          0.5, 0.5}}, eta(0.001), Gamma { { {0, 0}, {0, 0}}}, updated(false), unseenCount(0), unseenLimit(3), fixed(false)
   {
   }
 
@@ -48,7 +49,7 @@ struct PointAccumulator
           {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}},
                                                        { { { { {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}, { {
                                                            {1e-10, 1e-10}, {1e-10, 1e-10}, {1e-10, 1e-10}}}}}}}, Q { {
-          0.5, 0.5}}, eta(0.001), updated(false), unseenCount(0), unseenLimit(3)
+          0.5, 0.5}}, eta(0.001), updated(false), unseenCount(0), unseenLimit(3), fixed(false)
   { //void PointAccumulator::calcSteps()
     assert(i == -1);
   }
@@ -113,7 +114,9 @@ struct PointAccumulator
   int n, visits, switches;
   inline double entropy() const;
   bool updated;
+  bool fixed;
   std::array<double, N> Q;
+  inline void init(int occ, const Point& p);
 
 private:
 
@@ -190,6 +193,29 @@ inline void PointAccumulator::updateIfNotSeen()
   else
   {
     updateNew(no);
+  }
+}
+
+inline void PointAccumulator::init(int occ, const Point& p)
+{
+  ROS_ASSERT(occ == 0 || occ == 100 || occ == -1);
+
+  if (occ == 100)
+  {
+    fixed = true;
+    Q[0] = 1;
+    Q[1] = 0;
+    visits++;
+    acc.x = p.x;
+    acc.y = p.y;
+    A =  {{ {0.99, 0.01}, {0.99, 0.01}}};
+  }
+  else if (occ == 0)
+  {
+    Q[0] = 0;
+    Q[1] = 1;
+    visits++;
+    A = { {{0.01, 0.99}, {0.01, 0.99}}};
   }
 }
 

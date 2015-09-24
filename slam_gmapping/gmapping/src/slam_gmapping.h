@@ -27,6 +27,7 @@
 #include "server_slam/turnOff.h"
 #include "server_slam/poseRequest.h"
 #include "server_slam/PoseNamedStamped.h"
+#include "server_slam/initRobot.h"
 
 #include "tf/transform_listener.h"
 #include "tf/transform_broadcaster.h"
@@ -126,6 +127,8 @@ private:
   bool initMapper(const sensor_msgs::LaserScan& scan);
   bool addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoint & gmap_pose);
   double computePoseEntropy();
+  void setInitialMap();
+  void sendInitRequest();
 
   // Parameters used by GMapping
   double maxRange_;
@@ -149,10 +152,12 @@ private:
   double temporalUpdate_;
   double resampleThreshold_;
   int particles_;
-  double xmin_;
-  double ymin_;
-  double xmax_;
-  double ymax_;
+//  double xmin_;
+//  double ymin_;
+//  double xmax_;
+//  double ymax_;
+  double xcenter_;
+  double ycenter_;
   double delta_;
   double occ_thresh_;
   double llsamplerange_;
