@@ -421,7 +421,6 @@ inline void GridSlamProcessor::normalize()
   {
     *it = *it / wcum;
     double w = *it;
-    std::cerr << w << std::endl;
     m_neff += w * w;
   }
   m_neff = 1. / m_neff;

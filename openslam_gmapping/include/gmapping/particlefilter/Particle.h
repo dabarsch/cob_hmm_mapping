@@ -58,7 +58,6 @@ inline Particle::Particle(const ScanMatcherMap& m) :
     map_(m), pose(0, 0, 0), weight(0), weightSum(0), gweight(0), p_map_(boost::extents[m.getMapSizeX()][m.getMapSizeY()])
 {
   initPtrMap();
-  ROS_INFO_STREAM("init particle");
 }
 
 inline Particle::operator double() const

@@ -490,7 +490,7 @@ inline unsigned int ScanMatcher::likelihoodAndScore(
       l += (found) ? f : noHit;
     }
   }
-  ROS_INFO_STREAM("n: " << n << " hit: " << hit << " weight: " << l << " score: " << s);
+//  ROS_INFO_STREAM("n: " << n << " hit: " << hit << " weight: " << l << " score: " << s);
   return c;
 }
 

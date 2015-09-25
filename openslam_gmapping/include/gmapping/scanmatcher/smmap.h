@@ -208,6 +208,7 @@ inline void PointAccumulator::init(int occ, const Point& p)
     visits++;
     acc.x = p.x;
     acc.y = p.y;
+    n++;
     A =  {{ {0.99, 0.01}, {0.99, 0.01}}};
   }
   else if (occ == 0)
